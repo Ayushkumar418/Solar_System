@@ -1,0 +1,611 @@
+Act as a senior Frontend Engineer, Three.js Developer, UI/UX Designer, and Graphics Engineer.
+
+Your task is to build a production-quality, visually stunning, highly interactive 3D Solar System simulation using HTML, CSS, vanilla JavaScript, and the latest stable Three.js ES Modules loaded from CDN.
+
+The final project should feel like a professional educational visualization or museum-quality interactive experience rather than a simple Three.js demo.
+
+==================================================
+PROJECT GOAL
+==================================================
+
+Create a responsive, beautiful, performant, and fully interactive Solar System that accurately represents the Sun and all eight planets while maintaining visually pleasing non-linear scaling for planetary sizes and orbital distances.
+
+Prioritize:
+
+• Clean Architecture
+• Smooth Animations
+• High Performance
+• Beautiful UI
+• Modern Design
+• Modular Code
+• Readability
+• Accessibility
+
+==================================================
+TECHNICAL REQUIREMENTS
+==================================================
+
+Use:
+
+• HTML5
+• CSS3
+• Vanilla JavaScript (ES6+)
+• Latest Three.js ES Modules via CDN
+• OrbitControls
+• CSS2DRenderer for labels (if needed)
+
+Do NOT use:
+
+React
+
+Vue
+
+Angular
+
+Bootstrap
+
+jQuery
+
+External textures
+
+External models
+
+External images
+
+All textures must be generated procedurally using CanvasTexture, gradients, or shader techniques.
+
+==================================================
+PROJECT STRUCTURE
+==================================================
+
+Create a clean project structure.
+
+index.html
+
+style.css
+
+script.js
+
+planetData.js
+
+helpers.js
+
+README.md
+
+Keep every module clean and reusable.
+
+==================================================
+SCENE SETUP
+==================================================
+
+Create
+
+• Perspective Camera
+
+• WebGLRenderer
+
+• OrbitControls
+
+• Responsive Canvas
+
+• Proper resize handling
+
+• High-DPI rendering
+
+Enable
+
+Antialiasing
+
+Shadow Map
+
+Tone Mapping
+
+sRGB Color Space
+
+Pixel Ratio optimization
+
+==================================================
+LIGHTING
+==================================================
+
+Create realistic space lighting.
+
+Sun:
+
+Bright PointLight at (0,0,0)
+
+High intensity
+
+Long distance
+
+Soft decay
+
+Ambient Light:
+
+Very subtle intensity
+
+Directional fill light if needed
+
+The Sun itself should glow using emissive materials combined with multiple transparent glow spheres.
+
+Optional:
+
+Bloom Postprocessing
+
+==================================================
+SPACE BACKGROUND
+==================================================
+
+Generate a beautiful procedural starfield.
+
+Requirements:
+
+Minimum 5000 stars
+
+Different sizes
+
+Different brightness
+
+Random colors
+
+Twinkling animation
+
+Huge rendering distance
+
+Optional:
+
+Milky Way effect
+
+Distant nebula colors
+
+==================================================
+SUN
+==================================================
+
+The Sun should include
+
+Animated glow
+
+Multiple glow layers
+
+Procedural surface colors
+
+Slight pulsating animation
+
+Emissive appearance
+
+Acts as the primary light source
+
+==================================================
+PLANETS
+==================================================
+
+Include
+
+Mercury
+
+Venus
+
+Earth
+
+Mars
+
+Jupiter
+
+Saturn
+
+Uranus
+
+Neptune
+
+Store all properties inside a structured array.
+
+Each planet should include
+
+Name
+
+Radius
+
+Color
+
+Distance
+
+Orbital Speed
+
+Rotation Speed
+
+Tilt
+
+Number of Moons
+
+Diameter
+
+Temperature
+
+Fun Fact
+
+Orbital Period
+
+Rotation Period
+
+==================================================
+VISUAL QUALITY
+==================================================
+
+Every planet should look visually unique.
+
+Examples
+
+Earth
+
+Blue oceans
+
+Green land
+
+White clouds
+
+Thin atmosphere
+
+Moon orbiting Earth
+
+Mars
+
+Rusty surface
+
+Dark patches
+
+Jupiter
+
+Striped procedural texture
+
+Saturn
+
+Detailed transparent ring system
+
+Correct inclination
+
+Procedural ring bands
+
+Uranus
+
+Blue-green appearance
+
+Neptune
+
+Deep blue appearance
+
+==================================================
+ORBITS
+==================================================
+
+Use logarithmic scaling so every planet fits nicely.
+
+Draw orbit rings.
+
+Allow orbit visibility toggle.
+
+Smooth revolution using delta time.
+
+Planet self rotation.
+
+Use requestAnimationFrame.
+
+Avoid frame-dependent movement.
+
+==================================================
+MOONS
+==================================================
+
+Include Earth's Moon.
+
+Moon should
+
+Orbit Earth
+
+Rotate
+
+Cast shadows
+
+==================================================
+CAMERA
+==================================================
+
+OrbitControls
+
+Zoom
+
+Pan
+
+Rotate
+
+Smooth damping
+
+When clicking a planet
+
+Smooth cinematic transition
+
+Focus camera
+
+Keep controls enabled
+
+Reset Camera button
+
+Double-click focuses planet
+
+==================================================
+INTERACTION
+==================================================
+
+Use Raycaster.
+
+Hover
+
+Planet glows
+
+Cursor changes
+
+Tooltip appears
+
+Click
+
+Camera focuses
+
+Planet info updates
+
+Keyboard shortcuts
+
+Space
+
+Pause
+
+R
+
+Reset
+
+F
+
+Fullscreen
+
+==================================================
+PLANET LABELS
+==================================================
+
+Use CSS2DRenderer.
+
+Floating labels
+
+Always face camera
+
+Fade with distance
+
+Hide when zoomed out
+
+==================================================
+USER INTERFACE
+==================================================
+
+Create a modern glassmorphism interface.
+
+Responsive
+
+Rounded corners
+
+Blur
+
+Soft shadows
+
+Professional typography
+
+Dark theme
+
+Include
+
+Play
+
+Pause
+
+Reset
+
+Fullscreen
+
+Speed Controls
+
+Orbit Toggle
+
+Label Toggle
+
+Stars Toggle
+
+Rotation Toggle
+
+Auto Rotate Toggle
+
+==================================================
+SIMULATION SPEED
+==================================================
+
+Provide
+
+0.25x
+
+0.5x
+
+1x
+
+2x
+
+5x
+
+10x
+
+Display current simulation speed.
+
+==================================================
+PLANET INFORMATION PANEL
+==================================================
+
+When selecting a planet show
+
+Name
+
+Diameter
+
+Distance from Sun
+
+Orbital Speed
+
+Orbital Period
+
+Rotation Period
+
+Temperature
+
+Number of Moons
+
+Fun Fact
+
+==================================================
+ANIMATIONS
+==================================================
+
+Use smooth easing.
+
+No abrupt transitions.
+
+Animated buttons
+
+Animated panel opening
+
+Camera interpolation
+
+Planet hover animation
+
+==================================================
+RESPONSIVENESS
+==================================================
+
+Support
+
+Desktop
+
+Laptop
+
+Tablet
+
+Mobile
+
+Landscape
+
+Portrait
+
+Touch gestures
+
+Pinch zoom
+
+==================================================
+PERFORMANCE
+==================================================
+
+Target 60 FPS.
+
+Reuse geometries.
+
+Reuse materials.
+
+Use BufferGeometry.
+
+Avoid unnecessary allocations.
+
+Dispose unused objects.
+
+Optimize rendering.
+
+==================================================
+ACCESSIBILITY
+==================================================
+
+Keyboard accessible controls.
+
+Readable fonts.
+
+High contrast.
+
+Proper ARIA labels.
+
+==================================================
+EXTRAS
+==================================================
+
+Include
+
+Shooting Stars
+
+Asteroid Belt
+
+Simulation Clock
+
+FPS Counter
+
+Auto Rotate Mode
+
+Compass
+
+Screenshot Button
+
+Loading Screen
+
+Smooth Intro Animation
+
+==================================================
+README
+==================================================
+
+Generate a professional README containing
+
+Project Overview
+
+Features
+
+Folder Structure
+
+How to Run
+
+Controls
+
+Technologies Used
+
+Future Improvements
+
+==================================================
+CODE QUALITY
+==================================================
+
+Write production-ready code.
+
+Well documented.
+
+Reusable.
+
+No duplicated code.
+
+Meaningful variable names.
+
+Proper comments.
+
+Follow modern JavaScript best practices.
+
+==================================================
+OUTPUT REQUIREMENTS
+==================================================
+
+Deliver the complete project.
+
+No placeholders.
+
+No TODO comments.
+
+No broken functionality.
+
+No external assets except official Three.js CDN modules.
+
+The result should be polished enough to be featured as a premium frontend portfolio project and demonstrate advanced Three.js skills.

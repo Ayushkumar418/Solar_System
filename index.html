@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Interactive 3D Solar System Simulation — explore planets, dwarf planets, moons, and more with guided tours and real-time orbital mechanics">
+  <title>3D Solar System — Interactive Explorer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="solarSystem"></canvas>
+
+  <div id="loadingScreen">
+    <div class="loader">
+      <div class="planet-loader"></div>
+      <p>Loading Solar System...</p>
+    </div>
+  </div>
+
+  <div id="ui-container">
+    <div id="control-panel" class="glass-panel">
+      <h2>Solar System</h2>
+      <div class="control-group">
+        <label>Simulation Speed</label>
+        <div class="speed-controls">
+          <button class="speed-btn" data-speed="0.25">0.25x</button>
+          <button class="speed-btn" data-speed="0.5">0.5x</button>
+          <button class="speed-btn active" data-speed="1">1x</button>
+          <button class="speed-btn" data-speed="2">2x</button>
+          <button class="speed-btn" data-speed="5">5x</button>
+          <button class="speed-btn" data-speed="10">10x</button>
+        </div>
+        <div id="speed-display">Speed: 1x</div>
+      </div>
+      <div class="control-group">
+        <div class="toggle-row">
+          <label>Orbits</label>
+          <button id="toggle-orbits" class="toggle-btn active">ON</button>
+        </div>
+        <div class="toggle-row">
+          <label>Labels</label>
+          <button id="toggle-labels" class="toggle-btn active">ON</button>
+        </div>
+        <div class="toggle-row">
+          <label>Stars</label>
+          <button id="toggle-stars" class="toggle-btn active">ON</button>
+        </div>
+        <div class="toggle-row">
+          <label>Rotation</label>
+          <button id="toggle-rotation" class="toggle-btn active">ON</button>
+        </div>
+        <div class="toggle-row">
+          <label>Auto Rotate</label>
+          <button id="toggle-auto-rotate" class="toggle-btn">OFF</button>
+        </div>
+        <div class="toggle-row">
+          <label>Dwarf Planets</label>
+          <button id="toggle-dwarf-planets" class="toggle-btn active">ON</button>
+        </div>
+        <div class="toggle-row">
+          <label>🔊 Sound</label>
+          <button id="toggle-sound" class="toggle-btn">OFF</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Quick Jump</label>
+        <div id="planet-search-wrapper" class="search-wrapper">
+          <input type="text" id="planet-search" class="search-input" placeholder="🔍 Search planet or moon..." autocomplete="off">
+          <div id="search-results" class="search-results hidden"></div>
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="button-row">
+          <button id="btn-pause" class="action-btn">⏸ Pause</button>
+          <button id="btn-reset" class="action-btn">↻ Reset</button>
+        </div>
+        <div class="button-row">
+          <button id="btn-fullscreen" class="action-btn">⛶ Fullscreen</button>
+          <button id="btn-screenshot" class="action-btn">📷 Screenshot</button>
+        </div>
+        <div class="button-row">
+          <button id="btn-time-travel" class="action-btn">⏱ Time Travel</button>
+          <button id="btn-compare" class="action-btn">⚖ Compare</button>
+        </div>
+        <div class="button-row">
+          <button id="btn-tour" class="action-btn tour-btn">🚀 Guided Tour</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="time-travel-panel" class="glass-panel hidden">
+      <div class="drag-handle" id="time-travel-drag-handle">
+        <h2>Time Travel</h2>
+        <span class="drag-icon">⋮⋮</span>
+      </div>
+      <button id="close-time-travel" class="close-btn">×</button>
+      <div class="control-group">
+        <label>Simulation Date</label>
+        <div id="current-date-display">January 1, 2024</div>
+      </div>
+      <div class="control-group">
+        <label>Select Year</label>
+        <input type="range" id="year-slider" min="1900" max="2100" value="2024" class="slider">
+        <div id="year-display">2024</div>
+      </div>
+      <div class="control-group">
+        <label>Select Date</label>
+        <input type="date" id="date-input" value="2024-01-01" class="date-input">
+      </div>
+      <div class="control-group">
+        <div class="button-row">
+          <button id="btn-apply-date" class="action-btn">Apply Date</button>
+          <button id="btn-today" class="action-btn">Today</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Quick Travel</label>
+        <div class="button-row">
+          <button id="btn-travel-100y" class="action-btn">-100 Years</button>
+          <button id="btn-travel-10y" class="action-btn">-10 Years</button>
+        </div>
+        <div class="button-row">
+          <button id="btn-travel-1y" class="action-btn">-1 Year</button>
+          <button id="btn-travel-1m" class="action-btn">-1 Month</button>
+        </div>
+        <div class="button-row">
+          <button id="btn-travel-p1m" class="action-btn">+1 Month</button>
+          <button id="btn-travel-p1y" class="action-btn">+1 Year</button>
+        </div>
+        <div class="button-row">
+          <button id="btn-travel-p10y" class="action-btn">+10 Years</button>
+          <button id="btn-travel-p100y" class="action-btn">+100 Years</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="comparison-panel" class="glass-panel hidden">
+      <button id="close-comparison" class="close-btn">×</button>
+      <div class="drag-handle" id="comparison-drag-handle">
+        <h2>Planet Comparison</h2>
+        <span class="drag-icon">⋮⋮</span>
+      </div>
+      <div class="control-group">
+        <label>Select Planets to Compare</label>
+        <div id="planet-selector" class="planet-selector">
+          <button class="planet-select-btn" data-planet="Mercury">Mercury</button>
+          <button class="planet-select-btn" data-planet="Venus">Venus</button>
+          <button class="planet-select-btn active" data-planet="Earth">Earth</button>
+          <button class="planet-select-btn" data-planet="Mars">Mars</button>
+          <button class="planet-select-btn" data-planet="Jupiter">Jupiter</button>
+          <button class="planet-select-btn" data-planet="Saturn">Saturn</button>
+          <button class="planet-select-btn" data-planet="Uranus">Uranus</button>
+          <button class="planet-select-btn" data-planet="Neptune">Neptune</button>
+          <button class="planet-select-btn dwarf-select" data-planet="Pluto">Pluto</button>
+          <button class="planet-select-btn dwarf-select" data-planet="Ceres">Ceres</button>
+          <button class="planet-select-btn dwarf-select" data-planet="Eris">Eris</button>
+        </div>
+      </div>
+      <div id="comparison-visual" class="comparison-visual">
+        <!-- Visual size comparison will be rendered here -->
+      </div>
+      <div id="comparison-data" class="comparison-data">
+        <!-- Comparison data table will be rendered here -->
+      </div>
+    </div>
+
+    <div id="info-panel" class="glass-panel hidden">
+      <button id="close-info" class="close-btn">×</button>
+      <h2 id="planet-name">Earth</h2>
+      <div class="info-content">
+        <div class="info-row">
+          <span class="info-label">Diameter:</span>
+          <span id="info-diameter" class="info-value">12,742 km</span>
+        </div>
+        <div class="info-row">
+          <span id="info-distance-label" class="info-label">Distance from Sun:</span>
+          <span id="info-distance" class="info-value">149,600,000 km</span>
+        </div>
+        <div class="info-row light-travel-row" id="light-travel-row">
+          <span class="info-label">☀️ Light Travel Time:</span>
+          <span id="info-light-travel" class="info-value light-travel-value">8 min 20 sec</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Orbital Speed:</span>
+          <span id="info-orbital-speed" class="info-value">1.0x</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Orbital Period:</span>
+          <span id="info-orbital-period" class="info-value">365.25 days</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Rotation Period:</span>
+          <span id="info-rotation-period" class="info-value">24 hours</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Temperature:</span>
+          <span id="info-temperature" class="info-value">15°C</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Moons:</span>
+          <span id="info-moons" class="info-value">1</span>
+        </div>
+        <div class="info-row fun-fact">
+          <span class="info-label">Fun Fact:</span>
+          <span id="info-fun-fact" class="info-value">Earth is the only known planet to support life.</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="tooltip" class="hidden">
+      <span id="tooltip-text">Earth</span>
+    </div>
+
+    <div id="stats-panel" class="glass-panel-mini">
+      <span id="fps-counter">FPS: 60</span>
+      <span id="clock-display">00:00:00</span>
+    </div>
+
+    <div id="help-hint" class="glass-panel-mini">
+      <span>🖱️ Drag to rotate | Right-click drag to pan | Scroll to zoom</span>
+    </div>
+
+    <div id="tour-overlay" class="glass-panel tour-panel hidden">
+      <button id="tour-exit" class="close-btn">×</button>
+      <h3 id="tour-title">The Sun</h3>
+      <p id="tour-narration">Tour narration text here...</p>
+      <div class="tour-controls">
+        <button id="tour-prev" class="action-btn tour-nav-btn">◀ Previous</button>
+        <span id="tour-progress" class="tour-progress">1 / 11</span>
+        <button id="tour-next" class="action-btn tour-nav-btn">Next ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mini-Map -->
+  <div id="minimap-container" class="glass-panel-mini">
+    <canvas id="minimap" width="180" height="180"></canvas>
+  </div>
+
+  <div id="label-container"></div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>
