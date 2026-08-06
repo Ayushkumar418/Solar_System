@@ -1229,6 +1229,18 @@ function setupUIControls() {
   // Scale Toggle
   const scaleBtn = document.getElementById('btn-scale-toggle');
   if (scaleBtn) scaleBtn.addEventListener('click', toggleScaleMode);
+
+  // Quiz Mode
+  const quizBtn = document.getElementById('btn-quiz');
+  if (quizBtn) quizBtn.addEventListener('click', startQuiz);
+  
+  document.getElementById('close-quiz').addEventListener('click', () => {
+    document.getElementById('quiz-panel').classList.add('hidden');
+    quizActive = false;
+  });
+  
+  document.getElementById('btn-quiz-next').addEventListener('click', nextQuizQuestion);
+  document.getElementById('btn-quiz-restart').addEventListener('click', startQuiz);
 }
 
 function toggleTimeTravel() {
@@ -2219,6 +2231,162 @@ const soundToggleBtn = document.getElementById('toggle-sound');
 if (soundToggleBtn) {
   soundToggleBtn.addEventListener('click', toggleAmbientSound);
 }
+// ===================================================
+// QUIZ MODE (Interactive Trivia)
+// ===================================================
+let quizActive = false;
+let quizScore = 0;
+let quizQuestionCount = 0;
+const QUIZ_MAX_QUESTIONS = 10;
+let quizCurrentAnswer = -1;
+let quizOptionsBtns = [];
+
+function startQuiz() {
+  quizActive = true;
+  quizScore = 0;
+  quizQuestionCount = 0;
+  
+  document.getElementById('quiz-panel').classList.remove('hidden');
+  document.getElementById('quiz-content').classList.remove('hidden');
+  document.getElementById('quiz-end-screen').classList.add('hidden');
+  
+  const optionsContainer = document.getElementById('quiz-options');
+  if (optionsContainer.children.length === 0) {
+    for (let i = 0; i < 4; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-option-btn';
+      btn.onclick = () => checkQuizAnswer(i);
+      optionsContainer.appendChild(btn);
+      quizOptionsBtns.push(btn);
+    }
+  }
+  
+  nextQuizQuestion();
+}
+
+function nextQuizQuestion() {
+  if (quizQuestionCount >= QUIZ_MAX_QUESTIONS) {
+    endQuiz();
+    return;
+  }
+  
+  quizQuestionCount++;
+  document.getElementById('quiz-score').textContent = `Score: ${quizScore}/${QUIZ_MAX_QUESTIONS} (Q: ${quizQuestionCount})`;
+  
+  document.getElementById('quiz-feedback').classList.add('hidden');
+  document.getElementById('btn-quiz-next').classList.add('hidden');
+  
+  quizOptionsBtns.forEach(btn => {
+    btn.classList.remove('correct', 'wrong');
+    btn.disabled = false;
+  });
+  
+  generateQuizQuestion();
+}
+
+function generateQuizQuestion() {
+  const allBodies = [...PLANETS, ...DWARF_PLANETS];
+  const questionTypes = ['moons', 'radius', 'temperature', 'orbitalPeriod', 'rotationPeriod', 'funFact', 'distance'];
+  const type = questionTypes[Math.floor(Math.random() * questionTypes.length)];
+  const correctBody = allBodies[Math.floor(Math.random() * allBodies.length)];
+  
+  let questionText = '';
+  let correctValue = '';
+  
+  switch(type) {
+    case 'moons':
+      questionText = `How many moons does ${correctBody.name} have?`;
+      correctValue = correctBody.moons.toString();
+      break;
+    case 'radius':
+      questionText = `Which celestial body has a diameter of roughly ${correctBody.diameter}?`;
+      correctValue = correctBody.name;
+      break;
+    case 'temperature':
+      questionText = `Which body has an average temperature of ${correctBody.temperature}?`;
+      correctValue = correctBody.name;
+      break;
+    case 'orbitalPeriod':
+      questionText = `Which celestial body takes ${correctBody.orbitalPeriod} to orbit the Sun?`;
+      correctValue = correctBody.name;
+      break;
+    case 'rotationPeriod':
+      questionText = `Which body has a rotation period (day length) of ${correctBody.rotationPeriod}?`;
+      correctValue = correctBody.name;
+      break;
+    case 'funFact':
+      questionText = `"${correctBody.funFact}" Which body is this?`;
+      correctValue = correctBody.name;
+      break;
+    case 'distance':
+      questionText = `Which body is approximately ${correctBody.distanceFromSun} from the Sun?`;
+      correctValue = correctBody.name;
+      break;
+  }
+  
+  document.getElementById('quiz-question').textContent = questionText;
+  
+  let options = [correctValue];
+  let safetyCounter = 0;
+  while(options.length < 4 && safetyCounter < 100) {
+    safetyCounter++;
+    let wrongBody = allBodies[Math.floor(Math.random() * allBodies.length)];
+    let wrongValue = (type === 'moons') ? wrongBody.moons.toString() : wrongBody.name;
+    
+    if (!options.includes(wrongValue)) {
+      options.push(wrongValue);
+    }
+  }
+  
+  options.sort(() => Math.random() - 0.5);
+  quizCurrentAnswer = options.indexOf(correctValue);
+  
+  options.forEach((opt, idx) => {
+    if (quizOptionsBtns[idx]) quizOptionsBtns[idx].textContent = opt;
+  });
+}
+
+function checkQuizAnswer(selectedIndex) {
+  quizOptionsBtns.forEach(btn => btn.disabled = true);
+  
+  const feedback = document.getElementById('quiz-feedback');
+  const feedbackIcon = document.getElementById('quiz-feedback-icon');
+  const feedbackText = document.getElementById('quiz-feedback-text');
+  
+  feedback.classList.remove('hidden', 'correct', 'wrong');
+  
+  if (selectedIndex === quizCurrentAnswer) {
+    quizScore++;
+    quizOptionsBtns[selectedIndex].classList.add('correct');
+    feedback.classList.add('correct');
+    feedbackIcon.textContent = '✅';
+    feedbackText.textContent = 'Correct!';
+    document.getElementById('quiz-score').textContent = `Score: ${quizScore}/${QUIZ_MAX_QUESTIONS} (Q: ${quizQuestionCount})`;
+  } else {
+    quizOptionsBtns[selectedIndex].classList.add('wrong');
+    quizOptionsBtns[quizCurrentAnswer].classList.add('correct');
+    feedback.classList.add('wrong');
+    feedbackIcon.textContent = '❌';
+    feedbackText.textContent = 'Incorrect!';
+  }
+  
+  document.getElementById('btn-quiz-next').classList.remove('hidden');
+}
+
+function endQuiz() {
+  document.getElementById('quiz-content').classList.add('hidden');
+  const endScreen = document.getElementById('quiz-end-screen');
+  endScreen.classList.remove('hidden');
+  
+  document.getElementById('quiz-final-score').textContent = `${quizScore}/${QUIZ_MAX_QUESTIONS}`;
+  
+  const msgEl = document.getElementById('quiz-final-msg');
+  if (quizScore === QUIZ_MAX_QUESTIONS) msgEl.textContent = 'Perfect score! You are a master of the Solar System!';
+  else if (quizScore >= 7) msgEl.textContent = 'Great job! You know your space facts well.';
+  else if (quizScore >= 4) msgEl.textContent = 'Good effort! Keep exploring to learn more.';
+  else msgEl.textContent = 'Space is vast and full of mysteries! Take the Guided Tour to learn more.';
+}
+
 // ===================================================
 // SCALE TOGGLE (Visual ↔ Realistic Proportions)
 // ===================================================

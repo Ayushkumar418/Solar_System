@@ -95,7 +95,38 @@
           <button id="btn-tour" class="action-btn tour-btn">🚀 Guided Tour</button>
           <button id="btn-scale-toggle" class="action-btn scale-btn">📐 Realistic Scale</button>
         </div>
+        <div class="button-row">
+          <button id="btn-quiz" class="action-btn quiz-btn">🧠 Quiz Mode</button>
         </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiz Panel Modal -->
+    <div id="quiz-panel" class="glass-panel hidden">
+      <div class="panel-header" id="quiz-panel-header">
+        <h2>Solar System Quiz</h2>
+        <span id="quiz-score" class="quiz-score">Score: 0</span>
+      </div>
+      <button id="close-quiz" class="close-btn">×</button>
+      
+      <div id="quiz-content">
+        <p id="quiz-question" class="quiz-question">Question text goes here?</p>
+        <div id="quiz-options" class="quiz-options">
+          <!-- Option buttons will be injected here via JS -->
+        </div>
+        <div id="quiz-feedback" class="quiz-feedback hidden">
+          <span id="quiz-feedback-icon">✅</span>
+          <span id="quiz-feedback-text">Correct!</span>
+        </div>
+        <button id="btn-quiz-next" class="action-btn quiz-next-btn hidden">Next Question ➔</button>
+      </div>
+      
+      <div id="quiz-end-screen" class="hidden">
+        <h3>Quiz Complete!</h3>
+        <p class="final-score">You scored: <span id="quiz-final-score">0/10</span></p>
+        <p id="quiz-final-msg" class="quiz-final-msg">Great job!</p>
+        <button id="btn-quiz-restart" class="action-btn">Restart Quiz</button>
       </div>
     </div>
 
