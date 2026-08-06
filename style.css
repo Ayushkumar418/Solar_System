@@ -892,7 +892,7 @@ html, body {
 }
 
 /* Measure Panel Modal */
-#measure-panel {
+#measure-panel, #eclipse-panel {
   position: absolute;
   top: 80px;
   left: 50%;
@@ -905,12 +905,12 @@ html, body {
   pointer-events: auto;
 }
 
-#measure-panel.hidden {
+#measure-panel.hidden, #eclipse-panel.hidden {
   display: none !important;
   pointer-events: none;
 }
 
-#measure-content {
+#measure-content, #eclipse-content {
   padding: 16px;
   text-align: center;
 }

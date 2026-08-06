@@ -2128,7 +2128,8 @@ function simulateEclipse(type) {
     previousSimulationSpeed = simulationSpeed;
   }
   simulationSpeed = 0.02;
-  updateSpeedDisplay();
+  const speedDisplay = document.getElementById('speed-display');
+  if (speedDisplay) speedDisplay.textContent = `Speed: ${simulationSpeed}x`;
   
   const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
   if (!earthEntry || !moonOrbit || !moon) return;
@@ -2182,7 +2183,8 @@ function exitEclipse() {
   eclipseType = null;
   
   simulationSpeed = previousSimulationSpeed;
-  updateSpeedDisplay();
+  const speedDisplay = document.getElementById('speed-display');
+  if (speedDisplay) speedDisplay.textContent = `Speed: ${simulationSpeed}x`;
   
   const btnSolar = document.getElementById('btn-solar-eclipse');
   const btnLunar = document.getElementById('btn-lunar-eclipse');
