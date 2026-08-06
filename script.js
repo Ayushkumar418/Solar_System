@@ -8,6 +8,8 @@ import { PLANETS, DWARF_PLANETS, SUN_DATA, MOON_DATA } from './planetData.js';
 import {
   createStarfield,
   createMilkyWay,
+  createKuiperBelt,
+  createOortCloud,
   createSunGlow,
   createEarthTexture,
   createEarthCloudTexture,
@@ -46,6 +48,8 @@ let showStars = true;
 let showRotation = true;
 let autoRotate = false;
 let showDwarfPlanets = true;
+let showKuiperBelt = true;
+let kuiperBelt, oortCloud;
 
 let raycaster, mouse;
 let hoveredPlanet = null;
@@ -300,6 +304,12 @@ function createSpaceBackground() {
 
   const milkyWay = createMilkyWay(25000);
   scene.add(milkyWay);
+  
+  kuiperBelt = createKuiperBelt(8000);
+  scene.add(kuiperBelt);
+  
+  oortCloud = createOortCloud(5000);
+  scene.add(oortCloud);
 }
 
 function createSun() {
@@ -1193,6 +1203,10 @@ function setupUIControls() {
   document.getElementById('toggle-stars').addEventListener('click', toggleStars);
   document.getElementById('toggle-rotation').addEventListener('click', toggleRotation);
   document.getElementById('toggle-auto-rotate').addEventListener('click', toggleAutoRotate);
+  
+  const kuiperBtn = document.getElementById('toggle-kuiper');
+  if (kuiperBtn) kuiperBtn.addEventListener('click', toggleKuiperBelt);
+
   const dwarfBtn = document.getElementById('toggle-dwarf-planets');
   if (dwarfBtn) dwarfBtn.addEventListener('click', toggleDwarfPlanets);
   document.getElementById('close-info').addEventListener('click', () => {
@@ -1633,6 +1647,13 @@ function animate() {
           child.rotation.y += delta * 0.02 * simulationSpeed;
         }
       });
+      
+      if (kuiperBelt && showKuiperBelt) {
+        kuiperBelt.rotation.y -= delta * 0.01 * simulationSpeed;
+      }
+      if (oortCloud && showKuiperBelt) {
+        oortCloud.rotation.y += delta * 0.005 * simulationSpeed;
+      }
     }
 
     // Shooting stars
@@ -1766,6 +1787,18 @@ function toggleDwarfPlanets() {
   if (btn) {
     btn.textContent = showDwarfPlanets ? 'ON' : 'OFF';
     btn.classList.toggle('active', showDwarfPlanets);
+  }
+}
+
+function toggleKuiperBelt() {
+  showKuiperBelt = !showKuiperBelt;
+  if (kuiperBelt) kuiperBelt.visible = showKuiperBelt;
+  if (oortCloud) oortCloud.visible = showKuiperBelt;
+  
+  const btn = document.getElementById('toggle-kuiper');
+  if (btn) {
+    btn.textContent = showKuiperBelt ? 'ON' : 'OFF';
+    btn.classList.toggle('active', showKuiperBelt);
   }
 }
 
