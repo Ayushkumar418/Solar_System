@@ -51,6 +51,9 @@ let autoRotate = false;
 let showDwarfPlanets = true;
 let showKuiperBelt = true;
 let showConstellations = false;
+let isMeasuring = false;
+let measureSelection = [];
+let measureLineMesh = null;
 let kuiperBelt, oortCloud, constellations;
 
 let raycaster, mouse;
@@ -906,7 +909,8 @@ function onMouseClick(event) {
   if (event.target.closest('#control-panel') || event.target.closest('#info-panel') ||
       event.target.closest('#time-travel-panel') || event.target.closest('#comparison-panel') ||
       event.target.closest('#stats-panel') || event.target.closest('#tour-overlay') ||
-      event.target.closest('#planet-search-wrapper') || event.target.closest('#minimap-container')) {
+      event.target.closest('#planet-search-wrapper') || event.target.closest('#minimap-container') ||
+      event.target.closest('#measure-panel')) {
     return;
   }
 
@@ -919,7 +923,19 @@ function onMouseClick(event) {
   if (intersects.length > 0) {
     const found = resolveIntersection(intersects[0].object);
     if (found) {
-      selectPlanet(found.data, found.object);
+      if (isMeasuring) {
+        handleMeasureSelection(found);
+      } else {
+        selectPlanet(found.data, found.object);
+      }
+    }
+  } else {
+    if (!isMeasuring) {
+      if (hoveredPlanet) {
+        hoveredPlanet.material.emissiveIntensity = 0;
+      }
+      hoveredPlanet = null;
+      hidePlanetInfo();
     }
   }
 }
@@ -1215,6 +1231,17 @@ function setupUIControls() {
   
   const constellationsBtn = document.getElementById('toggle-constellations');
   if (constellationsBtn) constellationsBtn.addEventListener('click', toggleConstellations);
+
+  const measureBtn = document.getElementById('btn-measure');
+  if (measureBtn) measureBtn.addEventListener('click', toggleMeasureMode);
+  
+  const closeMeasureBtn = document.getElementById('close-measure');
+  if (closeMeasureBtn) closeMeasureBtn.addEventListener('click', () => {
+    if (isMeasuring) toggleMeasureMode();
+  });
+  
+  const clearMeasureBtn = document.getElementById('btn-measure-clear');
+  if (clearMeasureBtn) clearMeasureBtn.addEventListener('click', clearMeasurement);
 
   const dwarfBtn = document.getElementById('toggle-dwarf-planets');
   if (dwarfBtn) dwarfBtn.addEventListener('click', toggleDwarfPlanets);
@@ -1667,6 +1694,11 @@ function animate() {
 
     // Shooting stars
     updateShootingStars(delta, elapsed);
+    
+    // Measurement Line Updates
+    if (isMeasuring && measureSelection.length === 2) {
+      updateMeasurement();
+    }
 
     if (stars) {
       stars.rotation.y += delta * 0.002;
@@ -1823,6 +1855,129 @@ function toggleConstellations() {
     btn.textContent = showConstellations ? 'ON' : 'OFF';
     btn.classList.toggle('active', showConstellations);
   }
+}
+
+// ===================================================
+// MEASUREMENT TOOL
+// ===================================================
+
+function toggleMeasureMode() {
+  isMeasuring = !isMeasuring;
+  const btn = document.getElementById('btn-measure');
+  if (btn) btn.classList.toggle('active', isMeasuring);
+  
+  const panel = document.getElementById('measure-panel');
+  if (panel) {
+    if (isMeasuring) {
+      panel.classList.remove('hidden');
+      clearMeasurement();
+    } else {
+      panel.classList.add('hidden');
+      clearMeasurement();
+    }
+  }
+}
+
+function handleMeasureSelection(found) {
+  if (measureSelection.length >= 2) return;
+  
+  // Prevent selecting the same body twice
+  if (measureSelection.length === 1 && measureSelection[0].object === found.object) return;
+
+  measureSelection.push(found);
+  
+  const target1 = document.getElementById('measure-target-1');
+  const target2 = document.getElementById('measure-target-2');
+  
+  if (measureSelection.length === 1) {
+    target1.textContent = found.data ? found.data.name : found.name;
+    target1.classList.remove('empty');
+    target1.classList.remove('active-selection');
+    target2.classList.add('active-selection');
+    document.getElementById('measure-instruction').textContent = "Select the second celestial body...";
+  } else if (measureSelection.length === 2) {
+    target2.textContent = found.data ? found.data.name : found.name;
+    target2.classList.remove('empty');
+    target2.classList.remove('active-selection');
+    document.getElementById('measure-instruction').textContent = "Measurement complete.";
+    document.getElementById('btn-measure-clear').disabled = false;
+    
+    const material = new THREE.LineDashedMaterial({
+      color: 0x42f5b3,
+      linewidth: 2,
+      dashSize: 3,
+      gapSize: 2,
+      transparent: true,
+      opacity: 0.8
+    });
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0)
+    ]);
+    measureLineMesh = new THREE.Line(geometry, material);
+    measureLineMesh.computeLineDistances();
+    scene.add(measureLineMesh);
+    
+    document.getElementById('measure-result').classList.remove('hidden');
+    updateMeasurement();
+  }
+}
+
+function clearMeasurement() {
+  measureSelection = [];
+  if (measureLineMesh) {
+    scene.remove(measureLineMesh);
+    measureLineMesh.geometry.dispose();
+    measureLineMesh.material.dispose();
+    measureLineMesh = null;
+  }
+  
+  const target1 = document.getElementById('measure-target-1');
+  const target2 = document.getElementById('measure-target-2');
+  if (target1) {
+    target1.textContent = "Target 1";
+    target1.className = "measure-target empty active-selection";
+  }
+  if (target2) {
+    target2.textContent = "Target 2";
+    target2.className = "measure-target empty";
+  }
+  
+  const instruction = document.getElementById('measure-instruction');
+  if (instruction) instruction.textContent = "Select the first celestial body...";
+  
+  const result = document.getElementById('measure-result');
+  if (result) result.classList.add('hidden');
+  
+  const clearBtn = document.getElementById('btn-measure-clear');
+  if (clearBtn) clearBtn.disabled = true;
+}
+
+function updateMeasurement() {
+  if (!isMeasuring || measureSelection.length !== 2 || !measureLineMesh) return;
+  
+  const pos1 = new THREE.Vector3();
+  const pos2 = new THREE.Vector3();
+  
+  measureSelection[0].object.getWorldPosition(pos1);
+  measureSelection[1].object.getWorldPosition(pos2);
+  
+  measureLineMesh.geometry.setFromPoints([pos1, pos2]);
+  measureLineMesh.computeLineDistances();
+  
+  // Calculate distance in millions of km (1 unit ~ 9.97 million km)
+  const distUnits = pos1.distanceTo(pos2);
+  const distMillionsKm = distUnits * 9.97;
+  
+  // Format the display
+  let displayStr = "";
+  if (distMillionsKm < 1) {
+    displayStr = (distMillionsKm * 1000000).toLocaleString(undefined, {maximumFractionDigits: 0}) + " km";
+  } else {
+    displayStr = distMillionsKm.toLocaleString(undefined, {maximumFractionDigits: 2}) + " Million km";
+  }
+  
+  const valEl = document.getElementById('measure-distance-value');
+  if (valEl) valEl.textContent = displayStr;
 }
 
 // ===================================================

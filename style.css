@@ -860,6 +860,124 @@ html, body {
   border-color: rgba(200, 100, 255, 0.5) !important;
   transform: scale(1.02);
 }
+.measure-btn {
+  background: linear-gradient(135deg, rgba(74, 144, 217, 0.2), rgba(0, 204, 255, 0.15)) !important;
+  border-color: rgba(74, 144, 217, 0.3) !important;
+  color: #88ccff !important;
+}
+
+.measure-btn:hover, .measure-btn.active {
+  background: linear-gradient(135deg, rgba(74, 144, 217, 0.35), rgba(0, 204, 255, 0.25)) !important;
+  border-color: rgba(74, 144, 217, 0.5) !important;
+  color: #fff !important;
+  box-shadow: 0 0 15px rgba(74, 144, 217, 0.3);
+}
+
+/* Measure Panel Modal */
+#measure-panel {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400px;
+  max-width: 90vw;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+#measure-panel.hidden {
+  display: none !important;
+  pointer-events: none;
+}
+
+#measure-content {
+  padding: 16px;
+  text-align: center;
+}
+
+.measure-instruction {
+  font-size: 14px;
+  color: #a0c0d0;
+  margin-bottom: 15px;
+}
+
+.measure-targets {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.measure-target {
+  flex: 1;
+  padding: 8px;
+  background: rgba(74, 144, 217, 0.15);
+  border: 1px solid rgba(74, 144, 217, 0.3);
+  border-radius: 6px;
+  font-weight: bold;
+  color: #fff;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.measure-target.empty {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: normal;
+}
+
+.measure-target.active-selection {
+  border-color: #4a90d9;
+  box-shadow: 0 0 10px rgba(74, 144, 217, 0.5);
+  animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 5px rgba(74, 144, 217, 0.2); }
+  50% { box-shadow: 0 0 15px rgba(74, 144, 217, 0.6); }
+  100% { box-shadow: 0 0 5px rgba(74, 144, 217, 0.2); }
+}
+
+.measure-line-icon {
+  margin: 0 15px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 18px;
+}
+
+.measure-result {
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.measure-result.hidden {
+  display: none;
+}
+
+.measure-label {
+  color: #a0c0d0;
+  margin-right: 8px;
+}
+
+.measure-value {
+  color: #42f5b3;
+  font-weight: bold;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+.measure-clear-btn {
+  width: 100%;
+}
+
 
 #quiz-panel {
   position: absolute;

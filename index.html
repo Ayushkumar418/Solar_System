@@ -105,8 +105,30 @@
         </div>
         <div class="button-row">
           <button id="btn-quiz" class="action-btn quiz-btn">🧠 Quiz Mode</button>
+          <button id="btn-measure" class="action-btn measure-btn">📏 Measure</button>
         </div>
         </div>
+      </div>
+    </div>
+    
+    <!-- Measure Distance Panel -->
+    <div id="measure-panel" class="glass-panel hidden">
+      <div class="panel-header">
+        <h2>Distance Measurement</h2>
+        <button id="close-measure" class="close-btn">×</button>
+      </div>
+      <div id="measure-content">
+        <p id="measure-instruction" class="measure-instruction">Select the first celestial body...</p>
+        <div class="measure-targets">
+          <div id="measure-target-1" class="measure-target empty">Target 1</div>
+          <div class="measure-line-icon">⟷</div>
+          <div id="measure-target-2" class="measure-target empty">Target 2</div>
+        </div>
+        <div id="measure-result" class="measure-result hidden">
+          <span class="measure-label">Distance:</span>
+          <span id="measure-distance-value" class="measure-value">0 km</span>
+        </div>
+        <button id="btn-measure-clear" class="action-btn measure-clear-btn" disabled>Clear</button>
       </div>
     </div>
 
