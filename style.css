@@ -116,12 +116,74 @@ html, body {
   }
 }
 
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
 #control-panel h2 {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 16px;
   color: #fff;
   letter-spacing: 1px;
+  margin: 0;
+}
+
+.collapse-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#control-panel.collapsed .collapse-btn {
+  transform: rotate(-90deg);
+}
+
+#control-panel.collapsed .panel-header {
+  margin-bottom: 0;
+}
+
+#control-panel-content {
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+#control-panel-content::-webkit-scrollbar {
+  width: 4px;
+}
+#control-panel-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+}
+#control-panel-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+#control-panel.collapsed #control-panel-content {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  margin-top: 0;
 }
 
 .control-group {
@@ -427,11 +489,18 @@ html, body {
 
 #stats-panel {
   position: absolute;
-  bottom: 20px;
+  bottom: 2px;
   left: 20px;
   display: flex;
   gap: 16px;
   pointer-events: auto;
+  background: rgba(10, 15, 30, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
 }
 
 #help-hint {
@@ -1026,6 +1095,66 @@ html, body {
 }
 
 /* =============================================
+   SCALE TOGGLE
+   ============================================= */
+
+.scale-btn {
+  background: linear-gradient(135deg, rgba(50, 180, 100, 0.15), rgba(40, 200, 140, 0.1)) !important;
+  border-color: rgba(50, 200, 140, 0.25) !important;
+  color: rgba(50, 200, 140, 0.85) !important;
+}
+
+.scale-btn:hover {
+  background: linear-gradient(135deg, rgba(50, 180, 100, 0.3), rgba(40, 200, 140, 0.2)) !important;
+  border-color: rgba(50, 200, 140, 0.5) !important;
+  transform: scale(1.02);
+}
+
+.scale-btn.active {
+  background: linear-gradient(135deg, rgba(50, 180, 100, 0.35), rgba(40, 200, 140, 0.25)) !important;
+  border-color: rgba(50, 200, 140, 0.6) !important;
+  color: #44dd99 !important;
+  box-shadow: 0 0 12px rgba(50, 200, 140, 0.15);
+}
+
+#scale-indicator {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-60px);
+  z-index: 200;
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(50, 200, 140, 0.3);
+  background: rgba(5, 15, 25, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(50, 200, 140, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+  white-space: nowrap;
+}
+
+#scale-indicator.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+#scale-indicator .scale-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+  margin-right: 6px;
+}
+
+#scale-indicator .scale-value {
+  color: #44dd99;
+}
+
+/* =============================================
    DWARF PLANET LABELS
    ============================================= */
 
@@ -1048,23 +1177,95 @@ html, body {
   color: #c8b496 !important;
 }
 
-/* Mini-Map */
+/* =============================================
+   ENHANCED MINI-MAP (Sci-Fi Radar HUD)
+   ============================================= */
+
 #minimap-container {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 101;
+  bottom: 16px;
+  right: 16px;
+  z-index: 99;
   pointer-events: auto;
-  padding: 6px;
-  border-radius: 12px;
-  border: 1px solid rgba(100, 150, 255, 0.15);
-  background: rgba(5, 10, 25, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border-radius: 14px;
+  border: 1px solid rgba(50, 200, 160, 0.2);
+  background: rgba(5, 10, 25, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 20px rgba(50, 200, 160, 0.06),
+    0 0 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(50, 200, 160, 0.06);
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#minimap-container:hover {
+  border-color: rgba(50, 200, 160, 0.35);
+  box-shadow:
+    0 0 28px rgba(50, 200, 160, 0.1),
+    0 0 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(50, 200, 160, 0.08);
+}
+
+.minimap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(50, 200, 160, 0.1);
+  background: linear-gradient(180deg, rgba(50, 200, 160, 0.06) 0%, transparent 100%);
+}
+
+.minimap-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  color: rgba(50, 200, 160, 0.6);
+  text-transform: uppercase;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.minimap-zoom {
+  font-size: 9px;
+  color: rgba(50, 200, 160, 0.45);
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 0.5px;
 }
 
 #minimap {
   display: block;
-  border-radius: 8px;
+  cursor: crosshair;
+  width: 260px;
+  height: 260px;
+}
+
+.minimap-footer {
+  padding: 3px 10px 4px;
+  border-top: 1px solid rgba(50, 200, 160, 0.06);
+}
+
+.minimap-hint {
+  font-size: 7px;
+  color: rgba(50, 200, 160, 0.25);
+  letter-spacing: 0.3px;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+@media (max-width: 768px) {
+  #minimap-container {
+    bottom: 10px;
+    right: 10px;
+  }
+
+  #minimap {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  #minimap-container {
+    display: none;
+  }
 }

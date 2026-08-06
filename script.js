@@ -75,15 +75,50 @@ let tourFollowTarget = null;   // The 3D object to track (group)
 let tourFollowDistance = 15;   // Camera distance from target
 let tourTransitioning = false; // True during camera fly-to transition
 
-// Mini-map
+// Mini-map (Enhanced Radar HUD)
 let minimapCanvas = null;
 let minimapCtx = null;
+let minimapZoom = 1.0;
+let minimapPanX = 0;
+let minimapPanY = 0;
+let minimapHoveredBody = null;
+var MINIMAP_MAX_DIST = 100;
+var MINIMAP_ZOOM_MIN = 0.35;
+var MINIMAP_ZOOM_MAX = 14;
+var mmColorMap = {
+  'Sun': '#ffcc33', 'Mercury': '#8c7e6d', 'Venus': '#e8cda0', 'Earth': '#4a90d9',
+  'Mars': '#c1440e', 'Jupiter': '#c88b3a', 'Saturn': '#f5deb3', 'Uranus': '#73c2d0',
+  'Neptune': '#5577dd', 'Pluto': '#c8b496', 'Ceres': '#9a9a8a', 'Eris': '#e8e8e0'
+};
+var mmSizeMap = {
+  'Sun': 5, 'Jupiter': 4.2, 'Saturn': 3.8, 'Neptune': 3.2, 'Uranus': 3.2,
+  'Earth': 3, 'Venus': 2.6, 'Mars': 2.3, 'Mercury': 2, 'Pluto': 1.7, 'Eris': 1.7, 'Ceres': 1.4
+};
 
 // Ambient sound
 let audioCtx = null;
 let ambientGain = null;
 let ambientOscillators = [];
 let isSoundOn = false;
+
+// Scale Toggle (Visual ↔ Realistic)
+let isRealisticScale = false;
+let scaleTransitionProgress = 0; // 0 = visual, 1 = realistic
+let scaleTransitioning = false;
+
+// Real radii in km — used to compute realistic proportions
+var REAL_RADII = {
+  'Sun': 696340, 'Mercury': 2440, 'Venus': 6052, 'Earth': 6371,
+  'Mars': 3390, 'Jupiter': 69911, 'Saturn': 58232, 'Uranus': 25362,
+  'Neptune': 24622, 'Pluto': 1189, 'Ceres': 473, 'Eris': 1163,
+  'Moon': 1737, 'Io': 1822, 'Europa': 1561, 'Ganymede': 2634,
+  'Callisto': 2410, 'Titan': 2575, 'Enceladus': 252, 'Mimas': 198,
+  'Rhea': 764, 'Triton': 1353, 'Miranda': 236, 'Ariel': 579,
+  'Umbriel': 585, 'Titania': 789, 'Charon': 606
+};
+var EARTH_REAL_R = 6371;
+var EARTH_REF_SIZE = 0.5; // Earth's target visual radius in realistic mode
+var SUN_SCALE_CAP = 2.0;  // Cap Sun scale to prevent it from eating planets
 
 const sunData = SUN_DATA;
 const moonData = MOON_DATA;
@@ -214,6 +249,7 @@ function init() {
   setupComparison();
   setupPlanetSearch();
   setupGuidedTour();
+  setupMinimapInteraction();
 
   // Intro fly-in animation
   setTimeout(() => {
@@ -850,7 +886,7 @@ function onMouseClick(event) {
   if (event.target.closest('#control-panel') || event.target.closest('#info-panel') ||
       event.target.closest('#time-travel-panel') || event.target.closest('#comparison-panel') ||
       event.target.closest('#stats-panel') || event.target.closest('#tour-overlay') ||
-      event.target.closest('#planet-search-wrapper')) {
+      event.target.closest('#planet-search-wrapper') || event.target.closest('#minimap-container')) {
     return;
   }
 
@@ -871,7 +907,8 @@ function onMouseClick(event) {
 function onDoubleClick(event) {
   if (event.target.closest('#control-panel') || event.target.closest('#info-panel') ||
       event.target.closest('#time-travel-panel') || event.target.closest('#comparison-panel') ||
-      event.target.closest('#stats-panel') || event.target.closest('#tour-overlay')) {
+      event.target.closest('#stats-panel') || event.target.closest('#tour-overlay') ||
+      event.target.closest('#minimap-container')) {
     return;
   }
 
@@ -1127,6 +1164,13 @@ function toggleAutoRotate() {
 }
 
 function setupUIControls() {
+  const panelHeader = document.getElementById('control-panel-header');
+  if (panelHeader) {
+    panelHeader.addEventListener('click', () => {
+      document.getElementById('control-panel').classList.toggle('collapsed');
+    });
+  }
+
   document.querySelectorAll('.speed-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       simulationSpeed = parseFloat(btn.dataset.speed);
@@ -1181,6 +1225,10 @@ function setupUIControls() {
   document.getElementById('btn-travel-p1y').addEventListener('click', () => travelTime(1, 'years'));
   document.getElementById('btn-travel-p10y').addEventListener('click', () => travelTime(10, 'years'));
   document.getElementById('btn-travel-p100y').addEventListener('click', () => travelTime(100, 'years'));
+
+  // Scale Toggle
+  const scaleBtn = document.getElementById('btn-scale-toggle');
+  if (scaleBtn) scaleBtn.addEventListener('click', toggleScaleMode);
 }
 
 function toggleTimeTravel() {
@@ -1578,6 +1626,8 @@ function animate() {
       stars.rotation.y += delta * 0.002;
     }
   }
+
+  if (scaleTransitioning) updateScaleTransition(delta);
 
   updateLabels();
   updateClock();
@@ -2169,11 +2219,236 @@ const soundToggleBtn = document.getElementById('toggle-sound');
 if (soundToggleBtn) {
   soundToggleBtn.addEventListener('click', toggleAmbientSound);
 }
+// ===================================================
+// SCALE TOGGLE (Visual ↔ Realistic Proportions)
+// ===================================================
+
+function getRealisticScale(name, visualRadius) {
+  const real = REAL_RADII[name];
+  if (!real) return 1;
+  let s = (real / EARTH_REAL_R) * EARTH_REF_SIZE / visualRadius;
+  if (name === 'Sun') s = Math.min(s, SUN_SCALE_CAP);
+  return s;
+}
+
+function toggleScaleMode() {
+  isRealisticScale = !isRealisticScale;
+  scaleTransitioning = true;
+
+  const btn = document.getElementById('btn-scale-toggle');
+  const indicator = document.getElementById('scale-indicator');
+  const modeText = document.getElementById('scale-mode-text');
+
+  if (isRealisticScale) {
+    btn.classList.add('active');
+    btn.textContent = '📐 Visual Scale';
+    modeText.textContent = 'Realistic Proportions';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '📐 Realistic Scale';
+    modeText.textContent = 'Visual Proportions';
+  }
+
+  // Show indicator briefly
+  indicator.classList.add('visible');
+  clearTimeout(toggleScaleMode._hideTimer);
+  toggleScaleMode._hideTimer = setTimeout(() => {
+    indicator.classList.remove('visible');
+  }, 2500);
+}
+
+function updateScaleTransition(delta) {
+  const target = isRealisticScale ? 1 : 0;
+  const speed = 1.5; // transition completes in ~0.67 seconds
+
+  if (Math.abs(scaleTransitionProgress - target) < 0.002) {
+    scaleTransitionProgress = target;
+    scaleTransitioning = false;
+  } else {
+    scaleTransitionProgress += (target - scaleTransitionProgress) * Math.min(speed * delta * 5, 0.15);
+  }
+
+  const t = easeInOutCubic(scaleTransitionProgress);
+
+  // --- Sun ---
+  const sunScale = lerpScale(1, getRealisticScale('Sun', 4), t);
+  if (sun) sun.scale.setScalar(sunScale);
+  if (sunGlow) sunGlow.scale.setScalar(1.5 * sunScale);
+  if (outerGlow) outerGlow.scale.setScalar(2.0 * sunScale);
+
+  // --- Planets ---
+  planetMeshes.forEach(p => {
+    const rs = getRealisticScale(p.data.name, p.data.radius);
+    const s = lerpScale(1, rs, t);
+    p.mesh.scale.setScalar(s);
+  });
+
+  // --- Dwarf Planets ---
+  dwarfPlanetMeshes.forEach(p => {
+    const rs = getRealisticScale(p.data.name, p.data.radius);
+    const s = lerpScale(1, rs, t);
+    p.mesh.scale.setScalar(s);
+  });
+
+  // --- Earth's Moon ---
+  if (moon) {
+    const rs = getRealisticScale('Moon', 0.27);
+    moon.scale.setScalar(lerpScale(1, rs, t));
+  }
+
+  // --- Gas giant moons ---
+  gasGiantsMoons.forEach(m => {
+    const rs = getRealisticScale(m.data.name, m.data.radius);
+    m.mesh.scale.setScalar(lerpScale(1, rs, t));
+  });
+}
+
+function lerpScale(from, to, t) {
+  return from + (to - from) * t;
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
 // ===================================================
-// MINI-MAP (2D Radar View)
+// ENHANCED MINI-MAP (Sci-Fi Radar HUD)
 // ===================================================
 
+
+function mmCol(name) { return mmColorMap[name] || '#aaaaaa'; }
+function mmSz(name) { return (mmSizeMap[name] || 1.5) * Math.min(minimapZoom * 0.3 + 0.7, 1.6); }
+function hexRGBA(hex, a) {
+  if (!hex || hex[0] !== '#') return `rgba(180,180,180,${a})`;
+  return `rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`;
+}
+
+function worldToMM(wx, wz) {
+  const W = minimapCanvas.width;
+  const s = (W / 2 - 15) / MINIMAP_MAX_DIST * minimapZoom;
+  return { x: W / 2 + minimapPanX + wx * s, y: W / 2 + minimapPanY + wz * s };
+}
+
+function mmToWorld(sx, sy) {
+  const W = minimapCanvas.width;
+  const s = (W / 2 - 15) / MINIMAP_MAX_DIST * minimapZoom;
+  return { x: (sx - W / 2 - minimapPanX) / s, z: (sy - W / 2 - minimapPanY) / s };
+}
+
+// --- Minimap Interaction Setup ---
+function setupMinimapInteraction() {
+  const cv = document.getElementById('minimap');
+  if (!cv) return;
+  minimapCanvas = cv;
+  minimapCtx = cv.getContext('2d');
+
+  let isDown = false, sX = 0, sY = 0, wasDrag = false;
+
+  // Mouse-wheel zoom (toward cursor)
+  cv.addEventListener('wheel', e => {
+    e.preventDefault(); e.stopPropagation();
+    const rect = cv.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width * cv.width;
+    const my = (e.clientY - rect.top) / rect.height * cv.height;
+    const f = e.deltaY > 0 ? 0.85 : 1.18;
+    const nz = Math.max(MINIMAP_ZOOM_MIN, Math.min(MINIMAP_ZOOM_MAX, minimapZoom * f));
+    const r = nz / minimapZoom;
+    const cx = cv.width / 2, cy = cv.height / 2;
+    minimapPanX = mx - cx - (mx - cx - minimapPanX) * r;
+    minimapPanY = my - cy - (my - cy - minimapPanY) * r;
+    minimapZoom = nz;
+    const el = document.getElementById('minimap-zoom-level');
+    if (el) el.textContent = nz.toFixed(1) + '×';
+  }, { passive: false });
+
+  // Drag to pan / click to focus
+  cv.addEventListener('mousedown', e => {
+    isDown = true; wasDrag = false; sX = e.clientX; sY = e.clientY; e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (isDown) {
+      const dx = e.clientX - sX, dy = e.clientY - sY;
+      if (Math.abs(dx) + Math.abs(dy) > 3) {
+        wasDrag = true;
+        const rect = cv.getBoundingClientRect();
+        minimapPanX += dx / rect.width * cv.width;
+        minimapPanY += dy / rect.height * cv.height;
+        sX = e.clientX; sY = e.clientY;
+        cv.style.cursor = 'grabbing';
+      }
+    }
+    // Hover detection
+    if (minimapCanvas) {
+      const rect = cv.getBoundingClientRect();
+      if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        const mx = (e.clientX - rect.left) / rect.width * cv.width;
+        const my = (e.clientY - rect.top) / rect.height * cv.height;
+        minimapHoveredBody = getMMBodyAt(mx, my);
+        if (!isDown) cv.style.cursor = minimapHoveredBody ? 'pointer' : 'crosshair';
+      } else {
+        minimapHoveredBody = null;
+      }
+    }
+  });
+
+  window.addEventListener('mouseup', e => {
+    if (isDown && !wasDrag) {
+      const rect = cv.getBoundingClientRect();
+      if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        const mx = (e.clientX - rect.left) / rect.width * cv.width;
+        const my = (e.clientY - rect.top) / rect.height * cv.height;
+        handleMMClick(mx, my);
+      }
+    }
+    isDown = false;
+    cv.style.cursor = minimapHoveredBody ? 'pointer' : 'crosshair';
+  });
+
+  // Double-click resets zoom/pan
+  cv.addEventListener('dblclick', e => {
+    e.preventDefault();
+    minimapZoom = 1; minimapPanX = 0; minimapPanY = 0;
+    const el = document.getElementById('minimap-zoom-level');
+    if (el) el.textContent = '1.0×';
+  });
+
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+// --- Hit detection ---
+function getMMBodyAt(mx, my) {
+  const hr = Math.max(6, 8 / Math.sqrt(minimapZoom));
+  const sp = worldToMM(0, 0);
+  if (Math.hypot(mx - sp.x, my - sp.y) < hr + 2) return { name: 'Sun', type: 'sun' };
+  for (const p of planetMeshes) {
+    const pos = worldToMM(p.group.position.x, p.group.position.z);
+    if (Math.hypot(mx - pos.x, my - pos.y) < hr) return { name: p.data.name, type: 'planet', entry: p };
+  }
+  if (showDwarfPlanets) {
+    for (const p of dwarfPlanetMeshes) {
+      const pos = worldToMM(p.group.position.x, p.group.position.z);
+      if (Math.hypot(mx - pos.x, my - pos.y) < hr) return { name: p.data.name, type: 'dwarf', entry: p };
+    }
+  }
+  return null;
+}
+
+// --- Click to focus / teleport ---
+function handleMMClick(mx, my) {
+  const body = getMMBodyAt(mx, my);
+  if (body) {
+    if (body.type === 'sun') { focusPlanet(sun); }
+    else if (body.entry) { focusPlanet(body.entry.group); }
+    return;
+  }
+  // Click on empty space → fly camera there
+  const w = mmToWorld(mx, my);
+  const tgt = new THREE.Vector3(w.x, 0, w.z);
+  animateCamera(tgt.clone().add(new THREE.Vector3(0, 25, 25)), tgt);
+}
+
+// --- Main draw (called every frame) ---
 function updateMinimap() {
   if (!minimapCanvas) {
     minimapCanvas = document.getElementById('minimap');
@@ -2181,116 +2456,294 @@ function updateMinimap() {
   }
   if (!minimapCtx) return;
 
-  const W = minimapCanvas.width;
-  const H = minimapCanvas.height;
-  const cx = W / 2;
-  const cy = H / 2;
+  const ctx = minimapCtx;
+  const W = minimapCanvas.width, H = minimapCanvas.height;
+  const elapsed = clock ? clock.getElapsedTime() : 0;
 
-  // Scale: map the largest orbit distance to fit inside the canvas
-  // Eris is at distance 92, so scale to fit that in ~80px radius
-  const maxDist = 95;
-  const scale = (W / 2 - 10) / maxDist;
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
 
-  // Clear
-  minimapCtx.clearRect(0, 0, W, H);
+  // Clip to rounded rect
+  const cr = 8;
+  ctx.beginPath();
+  ctx.moveTo(cr, 0); ctx.lineTo(W - cr, 0); ctx.quadraticCurveTo(W, 0, W, cr);
+  ctx.lineTo(W, H - cr); ctx.quadraticCurveTo(W, H, W - cr, H);
+  ctx.lineTo(cr, H); ctx.quadraticCurveTo(0, H, 0, H - cr);
+  ctx.lineTo(0, cr); ctx.quadraticCurveTo(0, 0, cr, 0);
+  ctx.closePath(); ctx.clip();
 
-  // Background
-  minimapCtx.fillStyle = 'rgba(5, 8, 20, 0.9)';
-  minimapCtx.beginPath();
-  minimapCtx.arc(cx, cy, W / 2 - 1, 0, Math.PI * 2);
-  minimapCtx.fill();
+  // Background gradient
+  const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.7);
+  bg.addColorStop(0, '#080e1c'); bg.addColorStop(0.6, '#040814'); bg.addColorStop(1, '#02050f');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-  // Draw orbit rings
-  minimapCtx.strokeStyle = 'rgba(100, 150, 255, 0.08)';
-  minimapCtx.lineWidth = 0.5;
+  // Draw layers
+  drawMMGrid(ctx, W, H);
+  drawMMOrbits(ctx, W);
+  drawMMRings(ctx, W);
+  drawMMSweep(ctx, W, elapsed);
+  drawMMComets(ctx, W);
+  drawMMBodies(ctx, W, elapsed);
+  drawMMCamera(ctx, W);
+  drawMMCorners(ctx, W, H);
+  if (minimapHoveredBody) drawMMLabel(ctx, W);
+
+  ctx.restore();
+}
+
+// --- Grid overlay ---
+function drawMMGrid(ctx, W, H) {
+  let step = 22 * minimapZoom;
+  if (step < 12) step *= 2; if (step < 12) step *= 2;
+  if (step > 70) step /= 2; if (step > 70) step /= 2;
+
+  ctx.strokeStyle = 'rgba(40, 80, 130, 0.05)';
+  ctx.lineWidth = 0.5;
+  const ox = (W / 2 + minimapPanX) % step;
+  const oy = (H / 2 + minimapPanY) % step;
+  for (let x = ox; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = oy; y < H; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // Origin crosshair (Sun)
+  const o = worldToMM(0, 0);
+  ctx.strokeStyle = 'rgba(50, 200, 160, 0.06)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(o.x, 0); ctx.lineTo(o.x, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, o.y); ctx.lineTo(W, o.y); ctx.stroke();
+}
+
+// --- Orbit lines ---
+function drawMMOrbits(ctx, W) {
+  const o = worldToMM(0, 0);
+  const s = (W / 2 - 15) / MINIMAP_MAX_DIST * minimapZoom;
+
+  ctx.lineWidth = 0.5;
   planetMeshes.forEach(p => {
-    const r = p.data.distance * scale;
-    minimapCtx.beginPath();
-    minimapCtx.arc(cx, cy, r, 0, Math.PI * 2);
-    minimapCtx.stroke();
+    const r = p.data.distance * s;
+    if (r < 2 || r > W * 3) return;
+    ctx.strokeStyle = 'rgba(60, 100, 160, 0.1)';
+    ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, Math.PI * 2); ctx.stroke();
   });
 
-  // Sun
-  minimapCtx.fillStyle = '#ffcc33';
-  minimapCtx.beginPath();
-  minimapCtx.arc(cx, cy, 3, 0, Math.PI * 2);
-  minimapCtx.fill();
-  // Sun glow
-  const sunGradient = minimapCtx.createRadialGradient(cx, cy, 0, cx, cy, 8);
-  sunGradient.addColorStop(0, 'rgba(255, 200, 50, 0.3)');
-  sunGradient.addColorStop(1, 'rgba(255, 200, 50, 0)');
-  minimapCtx.fillStyle = sunGradient;
-  minimapCtx.beginPath();
-  minimapCtx.arc(cx, cy, 8, 0, Math.PI * 2);
-  minimapCtx.fill();
-
-  // Planet colors for minimap
-  const planetColors = {
-    'Mercury': '#8c7e6d', 'Venus': '#e8cda0', 'Earth': '#4a90d9',
-    'Mars': '#c1440e', 'Jupiter': '#c88b3a', 'Saturn': '#f5deb3',
-    'Uranus': '#73c2d0', 'Neptune': '#3f54ba'
-  };
-
-  // Draw planets
-  planetMeshes.forEach(p => {
-    const x = cx + p.group.position.x * scale;
-    const z = cy + p.group.position.z * scale;
-    const color = planetColors[p.data.name] || '#ffffff';
-    const size = Math.max(1.5, Math.min(p.data.radius * 1.2, 3.5));
-
-    // Parse hex color to RGB
-    const r = parseInt(color.slice(1,3), 16);
-    const g = parseInt(color.slice(3,5), 16);
-    const b = parseInt(color.slice(5,7), 16);
-
-    // Soft glow
-    minimapCtx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.15)`;
-    minimapCtx.beginPath();
-    minimapCtx.arc(x, z, size + 3, 0, Math.PI * 2);
-    minimapCtx.fill();
-
-    // Planet dot
-    minimapCtx.fillStyle = color;
-    minimapCtx.beginPath();
-    minimapCtx.arc(x, z, size, 0, Math.PI * 2);
-    minimapCtx.fill();
-  });
-
-  // Draw dwarf planets (smaller)
   if (showDwarfPlanets) {
+    ctx.setLineDash([2, 4]);
     dwarfPlanetMeshes.forEach(p => {
-      const x = cx + p.group.position.x * scale;
-      const z = cy + p.group.position.z * scale;
-      minimapCtx.fillStyle = 'rgba(200, 180, 150, 0.6)';
-      minimapCtx.beginPath();
-      minimapCtx.arc(x, z, 1.2, 0, Math.PI * 2);
-      minimapCtx.fill();
+      const r = p.data.distance * s;
+      if (r < 2 || r > W * 3) return;
+      ctx.strokeStyle = 'rgba(200, 180, 150, 0.06)';
+      ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, Math.PI * 2); ctx.stroke();
     });
+    ctx.setLineDash([]);
+  }
+}
+
+// --- AU distance reference rings ---
+function drawMMRings(ctx, W) {
+  const o = worldToMM(0, 0);
+  const s = (W / 2 - 15) / MINIMAP_MAX_DIST * minimapZoom;
+
+  // Reference rings at key orbital distances with AU labels
+  const rings = [
+    { d: 15, l: '1 AU' },   // Earth orbit
+    { d: 30, l: '~5 AU' },  // Jupiter region
+    { d: 65, l: '~30 AU' }, // Neptune region
+  ];
+
+  ctx.font = '7px "Courier New",monospace';
+  ctx.textAlign = 'left';
+
+  rings.forEach(ring => {
+    const r = ring.d * s;
+    if (r < 8 || r > W * 2) return;
+    ctx.strokeStyle = 'rgba(50, 200, 160, 0.08)';
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([4, 8]);
+    ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Label at ~45° angle
+    if (r > 18 && r < W) {
+      ctx.fillStyle = 'rgba(50, 200, 160, 0.22)';
+      const lx = o.x + r * 0.71 + 3;
+      const ly = o.y - r * 0.71 - 2;
+      if (lx > 5 && lx < W - 30 && ly > 5 && ly < W - 5) ctx.fillText(ring.l, lx, ly);
+    }
+  });
+}
+
+// --- Animated radar sweep ---
+function drawMMSweep(ctx, W, elapsed) {
+  const angle = elapsed * 0.35;
+  const o = worldToMM(0, 0);
+  const maxR = W * 1.5;
+
+  // Fading trail sector
+  for (let i = 0; i < 12; i++) {
+    const t = i / 12;
+    ctx.fillStyle = `rgba(50, 220, 160, ${0.035 * (1 - t * t)})`;
+    ctx.beginPath(); ctx.moveTo(o.x, o.y);
+    ctx.arc(o.x, o.y, maxR, angle - Math.PI * 0.25 * (i + 1) / 12, angle - Math.PI * 0.25 * i / 12);
+    ctx.closePath(); ctx.fill();
   }
 
-  // Camera indicator — show where the camera is looking
-  const camX = cx + camera.position.x * scale;
-  const camZ = cy + camera.position.z * scale;
+  // Leading sweep line
+  ctx.strokeStyle = 'rgba(50, 220, 160, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(o.x, o.y);
+  ctx.lineTo(o.x + Math.cos(angle) * maxR, o.y + Math.sin(angle) * maxR);
+  ctx.stroke();
+}
 
-  // Clamp to minimap bounds
-  const clampedX = Math.max(4, Math.min(W - 4, camX));
-  const clampedZ = Math.max(4, Math.min(H - 4, camZ));
+// --- Comet positions & motion trails ---
+function drawMMComets(ctx, W) {
+  comets.forEach(c => {
+    const pos = worldToMM(c.group.position.x, c.group.position.z);
+    if (pos.x < -15 || pos.x > W + 15 || pos.y < -15 || pos.y > W + 15) return;
 
+    // Velocity trail (opposite to travel direction)
+    const tLen = 10;
+    const dx = -Math.cos(c.angle) * tLen;
+    const dy = -Math.sin(c.angle) * tLen;
+    const tg = ctx.createLinearGradient(pos.x, pos.y, pos.x + dx, pos.y + dy);
+    tg.addColorStop(0, 'rgba(136, 221, 255, 0.5)'); tg.addColorStop(1, 'rgba(136, 221, 255, 0)');
+    ctx.strokeStyle = tg; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pos.x, pos.y); ctx.lineTo(pos.x + dx, pos.y + dy); ctx.stroke();
+
+    // Glow + dot
+    ctx.fillStyle = 'rgba(136, 221, 255, 0.12)';
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#88ddff';
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, 1.5, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+// --- Celestial bodies (Sun, planets, dwarf planets) ---
+function drawMMBodies(ctx, W, elapsed) {
+  // Sun
+  const sp = worldToMM(0, 0);
+  if (sp.x > -15 && sp.x < W + 15 && sp.y > -15 && sp.y < W + 15) {
+    const sg = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, 14);
+    sg.addColorStop(0, 'rgba(255, 200, 50, 0.35)'); sg.addColorStop(0.4, 'rgba(255, 150, 30, 0.1)'); sg.addColorStop(1, 'rgba(255, 100, 20, 0)');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sp.x, sp.y, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffcc33'; ctx.beginPath(); ctx.arc(sp.x, sp.y, mmSz('Sun'), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffaa'; ctx.beginPath(); ctx.arc(sp.x, sp.y, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Pulsing ring if selected
+    if (selectedPlanet && selectedPlanet.name === 'Sun') {
+      const p = 1 + 0.3 * Math.sin(elapsed * 3);
+      ctx.strokeStyle = `rgba(255, 200, 50, ${0.5 * p})`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, mmSz('Sun') + 4 + p * 2, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  // Shared draw function for planets & dwarf planets
+  const drawBody = (p, isDwarf) => {
+    const pos = worldToMM(p.group.position.x, p.group.position.z);
+    if (pos.x < -15 || pos.x > W + 15 || pos.y < -15 || pos.y > W + 15) return;
+    const col = mmCol(p.data.name), sz = mmSz(p.data.name);
+
+    // Glow
+    ctx.fillStyle = hexRGBA(col, isDwarf ? 0.1 : 0.14);
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, sz + 4, 0, Math.PI * 2); ctx.fill();
+    // Dot
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, sz, 0, Math.PI * 2); ctx.fill();
+
+    // Selection ring (pulsing)
+    if (selectedPlanet && selectedPlanet.name === p.data.name) {
+      const pulse = 1 + 0.3 * Math.sin(elapsed * 3);
+      ctx.strokeStyle = hexRGBA(col, 0.55 * pulse); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, sz + 4 + pulse * 2, 0, Math.PI * 2); ctx.stroke();
+    }
+  };
+
+  planetMeshes.forEach(p => drawBody(p, false));
+  if (showDwarfPlanets) dwarfPlanetMeshes.forEach(p => drawBody(p, true));
+}
+
+// --- Camera position & frustum cone ---
+function drawMMCamera(ctx, W) {
+  const cp = worldToMM(camera.position.x, camera.position.z);
+  const tp = worldToMM(controls.target.x, controls.target.z);
+  const dx = tp.x - cp.x, dy = tp.y - cp.y;
+  const angle = Math.atan2(dy, dx);
+  const dist = Math.min(Math.hypot(dx, dy), 55);
+  const fov = camera.fov * 0.5 * Math.PI / 180 * Math.min(camera.aspect, 1.5);
+
+  // Frustum fill
+  ctx.fillStyle = 'rgba(100, 200, 255, 0.03)';
+  ctx.beginPath(); ctx.moveTo(cp.x, cp.y);
+  ctx.arc(cp.x, cp.y, dist, angle - fov, angle + fov);
+  ctx.closePath(); ctx.fill();
+
+  // Frustum edge lines
+  ctx.strokeStyle = 'rgba(100, 200, 255, 0.12)'; ctx.lineWidth = 0.7;
+  [angle - fov, angle + fov].forEach(a => {
+    ctx.beginPath(); ctx.moveTo(cp.x, cp.y);
+    ctx.lineTo(cp.x + Math.cos(a) * dist, cp.y + Math.sin(a) * dist); ctx.stroke();
+  });
+
+  // View direction (dashed line to target)
+  ctx.strokeStyle = 'rgba(100, 200, 255, 0.15)'; ctx.lineWidth = 0.5;
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(cp.x, cp.y); ctx.lineTo(tp.x, tp.y); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Target crosshair
+  ctx.strokeStyle = 'rgba(100, 200, 255, 0.25)'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(tp.x - 4, tp.y); ctx.lineTo(tp.x + 4, tp.y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(tp.x, tp.y - 4); ctx.lineTo(tp.x, tp.y + 4); ctx.stroke();
+
+  // Camera dot glow
+  ctx.fillStyle = 'rgba(100, 200, 255, 0.18)';
+  ctx.beginPath(); ctx.arc(cp.x, cp.y, 6, 0, Math.PI * 2); ctx.fill();
   // Camera dot
-  minimapCtx.fillStyle = '#ffffff';
-  minimapCtx.beginPath();
-  minimapCtx.arc(clampedX, clampedZ, 2, 0, Math.PI * 2);
-  minimapCtx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(cp.x, cp.y, 2.5, 0, Math.PI * 2); ctx.fill();
+}
 
-  // Camera view direction line
-  const targetX = cx + controls.target.x * scale;
-  const targetZ = cy + controls.target.z * scale;
-  minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-  minimapCtx.lineWidth = 1;
-  minimapCtx.beginPath();
-  minimapCtx.moveTo(clampedX, clampedZ);
-  minimapCtx.lineTo(targetX, targetZ);
-  minimapCtx.stroke();
+// --- Sci-fi corner brackets ---
+function drawMMCorners(ctx, W, H) {
+  const len = 14, g = 3;
+  ctx.strokeStyle = 'rgba(50, 200, 160, 0.2)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(g, g + len); ctx.lineTo(g, g); ctx.lineTo(g + len, g); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W - g - len, g); ctx.lineTo(W - g, g); ctx.lineTo(W - g, g + len); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(g, H - g - len); ctx.lineTo(g, H - g); ctx.lineTo(g + len, H - g); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W - g - len, H - g); ctx.lineTo(W - g, H - g); ctx.lineTo(W - g, H - g - len); ctx.stroke();
+}
+
+// --- Hover tooltip label ---
+function drawMMLabel(ctx, W) {
+  let pos;
+  if (minimapHoveredBody.type === 'sun') pos = worldToMM(0, 0);
+  else if (minimapHoveredBody.entry) pos = worldToMM(minimapHoveredBody.entry.group.position.x, minimapHoveredBody.entry.group.position.z);
+  else return;
+
+  const name = minimapHoveredBody.name;
+  const col = mmCol(name);
+  ctx.font = 'bold 9px "Courier New",monospace';
+  const tw = ctx.measureText(name).width;
+  let px = pos.x + 10, py = pos.y - 6;
+  // Keep tooltip inside canvas
+  if (px + tw + 10 > W) px = pos.x - tw - 18;
+  if (py < 14) py = pos.y + 14;
+
+  // Background box
+  ctx.fillStyle = 'rgba(5, 12, 28, 0.88)';
+  ctx.fillRect(px - 4, py - 10, tw + 8, 14);
+  ctx.strokeStyle = hexRGBA(col, 0.35); ctx.lineWidth = 0.5;
+  ctx.strokeRect(px - 4, py - 10, tw + 8, 14);
+
+  // Text
+  ctx.fillStyle = col;
+  ctx.fillText(name, px, py);
+
+  // Hover ring on the body
+  const sz = mmSz(name);
+  ctx.strokeStyle = hexRGBA(col, 0.5); ctx.lineWidth = 1;
+  ctx.setLineDash([2, 2]);
+  ctx.beginPath(); ctx.arc(pos.x, pos.y, sz + 6, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 // ===================================================

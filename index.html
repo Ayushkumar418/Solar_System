@@ -17,10 +17,19 @@
     </div>
   </div>
 
+  <div id="scale-indicator">
+    <span class="scale-label">MODE:</span>
+    <span class="scale-value" id="scale-mode-text">Visual Proportions</span>
+  </div>
+
   <div id="ui-container">
     <div id="control-panel" class="glass-panel">
-      <h2>Solar System</h2>
-      <div class="control-group">
+      <div class="panel-header" id="control-panel-header">
+        <h2>Solar System</h2>
+        <button id="btn-collapse-controls" class="collapse-btn">▼</button>
+      </div>
+      <div id="control-panel-content">
+        <div class="control-group">
         <label>Simulation Speed</label>
         <div class="speed-controls">
           <button class="speed-btn" data-speed="0.25">0.25x</button>
@@ -84,6 +93,8 @@
         </div>
         <div class="button-row">
           <button id="btn-tour" class="action-btn tour-btn">🚀 Guided Tour</button>
+          <button id="btn-scale-toggle" class="action-btn scale-btn">📐 Realistic Scale</button>
+        </div>
         </div>
       </div>
     </div>
@@ -232,9 +243,16 @@
     </div>
   </div>
 
-  <!-- Mini-Map -->
-  <div id="minimap-container" class="glass-panel-mini">
-    <canvas id="minimap" width="180" height="180"></canvas>
+  <!-- Enhanced Mini-Map (Sci-Fi Radar HUD) -->
+  <div id="minimap-container">
+    <div class="minimap-header">
+      <span class="minimap-title">◈ RADAR</span>
+      <span id="minimap-zoom-level" class="minimap-zoom">1.0×</span>
+    </div>
+    <canvas id="minimap" width="260" height="260"></canvas>
+    <div class="minimap-footer">
+      <span class="minimap-hint">Scroll zoom · Drag pan · Click focus · Dbl-click reset</span>
+    </div>
   </div>
 
   <div id="label-container"></div>
