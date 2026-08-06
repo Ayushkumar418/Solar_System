@@ -207,12 +207,30 @@ export function createKuiperBelt(count = 8000) {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
-  const material = new THREE.PointsMaterial({
-    size: 1.0,
-    vertexColors: true,
+  const material = new THREE.ShaderMaterial({
+    vertexShader: `
+      attribute float size;
+      varying vec3 vColor;
+      void main() {
+        vColor = color;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (300.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      void main() {
+        float dist = length(gl_PointCoord - vec2(0.5));
+        if (dist > 0.5) discard;
+        float a = 1.0 - smoothstep(0.0, 0.5, dist);
+        gl_FragColor = vec4(vColor, a * 0.6);
+      }
+    `,
     transparent: true,
-    opacity: 0.6,
-    sizeAttenuation: true
+    vertexColors: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
   });
 
   return new THREE.Points(geometry, material);
@@ -242,12 +260,30 @@ export function createOortCloud(count = 5000) {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
-  const material = new THREE.PointsMaterial({
-    size: 1.0,
-    vertexColors: true,
+  const material = new THREE.ShaderMaterial({
+    vertexShader: `
+      attribute float size;
+      varying vec3 vColor;
+      void main() {
+        vColor = color;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (300.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      void main() {
+        float dist = length(gl_PointCoord - vec2(0.5));
+        if (dist > 0.5) discard;
+        float a = 1.0 - smoothstep(0.0, 0.5, dist);
+        gl_FragColor = vec4(vColor, a * 0.3);
+      }
+    `,
     transparent: true,
-    opacity: 0.3,
-    sizeAttenuation: true
+    vertexColors: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
   });
 
   return new THREE.Points(geometry, material);
