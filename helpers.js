@@ -177,6 +177,56 @@ export function createMilkyWay(count = 25000) {
   return points;
 }
 
+export function createConstellations(numConstellations = 35) {
+  const points = [];
+  const radius = 550; // Distance to the sky sphere
+  
+  for (let i = 0; i < numConstellations; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    
+    const cx = radius * Math.sin(phi) * Math.cos(theta);
+    const cy = radius * Math.sin(phi) * Math.sin(theta);
+    const cz = radius * Math.cos(phi);
+    
+    const numStars = 4 + Math.floor(Math.random() * 6); // 4 to 9 stars per constellation
+    const nodes = [new THREE.Vector3(cx, cy, cz)];
+    
+    for (let j = 1; j < numStars; j++) {
+      // Pick a random existing node to branch from
+      const parentNode = nodes[Math.floor(Math.random() * nodes.length)];
+      
+      const dir = new THREE.Vector3(
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+        Math.random() - 0.5
+      ).normalize();
+      
+      const length = 25 + Math.random() * 45;
+      const nextNode = parentNode.clone().add(dir.multiplyScalar(length));
+      
+      // Project back to sphere
+      nextNode.normalize().multiplyScalar(radius);
+      nodes.push(nextNode);
+      
+      // Add a line segment (two points)
+      points.push(parentNode);
+      points.push(nextNode);
+    }
+  }
+  
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = new THREE.LineBasicMaterial({
+    color: 0x44aaff, // Faint blue lines
+    transparent: true,
+    opacity: 0.15,
+    blending: THREE.AdditiveBlending
+  });
+  
+  const lineSegments = new THREE.LineSegments(geometry, material);
+  return lineSegments;
+}
+
 export function createKuiperBelt(count = 8000) {
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);

@@ -8,6 +8,7 @@ import { PLANETS, DWARF_PLANETS, SUN_DATA, MOON_DATA } from './planetData.js';
 import {
   createStarfield,
   createMilkyWay,
+  createConstellations,
   createKuiperBelt,
   createOortCloud,
   createSunGlow,
@@ -49,7 +50,8 @@ let showRotation = true;
 let autoRotate = false;
 let showDwarfPlanets = true;
 let showKuiperBelt = true;
-let kuiperBelt, oortCloud;
+let showConstellations = false;
+let kuiperBelt, oortCloud, constellations;
 
 let raycaster, mouse;
 let hoveredPlanet = null;
@@ -310,6 +312,10 @@ function createSpaceBackground() {
   
   oortCloud = createOortCloud(5000);
   scene.add(oortCloud);
+  
+  constellations = createConstellations(40);
+  constellations.visible = showConstellations;
+  scene.add(constellations);
 }
 
 function createSun() {
@@ -1206,6 +1212,9 @@ function setupUIControls() {
   
   const kuiperBtn = document.getElementById('toggle-kuiper');
   if (kuiperBtn) kuiperBtn.addEventListener('click', toggleKuiperBelt);
+  
+  const constellationsBtn = document.getElementById('toggle-constellations');
+  if (constellationsBtn) constellationsBtn.addEventListener('click', toggleConstellations);
 
   const dwarfBtn = document.getElementById('toggle-dwarf-planets');
   if (dwarfBtn) dwarfBtn.addEventListener('click', toggleDwarfPlanets);
@@ -1662,6 +1671,9 @@ function animate() {
     if (stars) {
       stars.rotation.y += delta * 0.002;
     }
+    if (constellations) {
+      constellations.rotation.y += delta * 0.002;
+    }
   }
 
   if (scaleTransitioning) updateScaleTransition(delta);
@@ -1799,6 +1811,17 @@ function toggleKuiperBelt() {
   if (btn) {
     btn.textContent = showKuiperBelt ? 'ON' : 'OFF';
     btn.classList.toggle('active', showKuiperBelt);
+  }
+}
+
+function toggleConstellations() {
+  showConstellations = !showConstellations;
+  if (constellations) constellations.visible = showConstellations;
+  
+  const btn = document.getElementById('toggle-constellations');
+  if (btn) {
+    btn.textContent = showConstellations ? 'ON' : 'OFF';
+    btn.classList.toggle('active', showConstellations);
   }
 }
 
