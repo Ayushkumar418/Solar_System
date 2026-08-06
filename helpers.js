@@ -97,6 +97,86 @@ export function createStarfield(count = 8000) {
   return points;
 }
 
+export function createMilkyWay(count = 25000) {
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const alphas = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3;
+    const radius = 450 + Math.random() * 400; // slightly inside/outside the starfield
+    const theta = Math.random() * Math.PI * 2;
+    
+    // Gaussian-like distribution around the equator (phi = PI/2)
+    let rand = (Math.random() + Math.random() + Math.random() - 1.5) / 1.5; 
+    const phi = (Math.PI / 2) + rand * 0.35; 
+
+    positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+    positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+    positions[i3 + 2] = radius * Math.cos(phi);
+
+    // Deep blues, purples, faint whites to simulate nebula gas/dense stars
+    const colorChoice = Math.random();
+    if (colorChoice < 0.4) {
+      colors[i3] = 0.5; colors[i3 + 1] = 0.7; colors[i3 + 2] = 1.0;
+    } else if (colorChoice < 0.7) {
+      colors[i3] = 0.8; colors[i3 + 1] = 0.5; colors[i3 + 2] = 0.9;
+    } else {
+      colors[i3] = 0.9; colors[i3 + 1] = 0.9; colors[i3 + 2] = 0.8;
+    }
+
+    sizes[i] = 1.5 + Math.random() * 4.0; // Nebulous blobs
+    
+    const intensity = 1.0 - Math.abs(rand); 
+    alphas[i] = 0.02 + intensity * 0.12; 
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
+
+  const material = new THREE.ShaderMaterial({
+    vertexShader: `
+      attribute float size;
+      attribute float alpha;
+      varying vec3 vColor;
+      varying float vAlpha;
+      void main() {
+        vColor = color;
+        vAlpha = alpha;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (300.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      varying float vAlpha;
+      void main() {
+        float dist = length(gl_PointCoord - vec2(0.5));
+        if (dist > 0.5) discard;
+        float a = 1.0 - smoothstep(0.0, 0.5, dist);
+        gl_FragColor = vec4(vColor, vAlpha * a * a);
+      }
+    `,
+    transparent: true,
+    vertexColors: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  const points = new THREE.Points(geometry, material);
+  
+  // Tilt the Milky Way 
+  points.rotation.x = Math.PI / 3; 
+  points.rotation.y = Math.PI / 4; 
+
+  return points;
+}
+
 export function createSunGlow() {
   const geometry = new THREE.SphereGeometry(3.5, 32, 32);
   const material = new THREE.ShaderMaterial({

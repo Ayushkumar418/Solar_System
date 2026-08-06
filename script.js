@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { PLANETS, DWARF_PLANETS, SUN_DATA, MOON_DATA } from './planetData.js';
 import {
   createStarfield,
+  createMilkyWay,
   createSunGlow,
   createEarthTexture,
   createEarthCloudTexture,
@@ -296,6 +297,9 @@ function createLighting() {
 function createSpaceBackground() {
   stars = createStarfield(8000);
   scene.add(stars);
+
+  const milkyWay = createMilkyWay(25000);
+  scene.add(milkyWay);
 }
 
 function createSun() {
