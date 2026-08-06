@@ -254,6 +254,66 @@ html, body {
   margin-top: 15px;
 }
 
+.eclipse-solar-btn {
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 80, 0, 0.2));
+  border: 1px solid rgba(255, 140, 0, 0.5);
+  flex: 1;
+  padding: 12px 8px;
+  transition: all 0.3s ease;
+}
+
+.eclipse-solar-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.6), rgba(255, 80, 0, 0.4));
+  box-shadow: 0 0 20px rgba(255, 140, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.eclipse-lunar-btn {
+  background: linear-gradient(135deg, rgba(180, 50, 50, 0.3), rgba(120, 30, 30, 0.2));
+  border: 1px solid rgba(180, 50, 50, 0.5);
+  flex: 1;
+  padding: 12px 8px;
+  transition: all 0.3s ease;
+}
+
+.eclipse-lunar-btn:hover {
+  background: linear-gradient(135deg, rgba(180, 50, 50, 0.6), rgba(120, 30, 30, 0.4));
+  box-shadow: 0 0 20px rgba(180, 50, 50, 0.4);
+  transform: translateY(-2px);
+}
+
+.eclipse-icon {
+  font-size: 1.2em;
+  margin-right: 4px;
+}
+
+.eclipse-info {
+  margin-top: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.eclipse-info.hidden {
+  display: none;
+}
+
+.eclipse-type-label {
+  font-weight: bold;
+  color: #42f5b3;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.eclipse-description {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin: 0;
+}
+
 #speed-display {
   text-align: center;
   font-size: 12px;

@@ -115,16 +115,24 @@
     <!-- Eclipse Simulator Panel -->
     <div id="eclipse-panel" class="glass-panel hidden">
       <div class="panel-header drag-handle" id="eclipse-panel-header" title="Drag to move">
-        <h2>Eclipse Simulator</h2>
+        <h2>🌑 Eclipse Simulator</h2>
         <button id="close-eclipse" class="close-btn">×</button>
       </div>
       <div id="eclipse-content">
-        <p class="measure-instruction">Simulate a perfect alignment of the Earth, Moon, and Sun.</p>
+        <p class="measure-instruction">Witness a perfect alignment of the Earth, Moon, and Sun.</p>
         <div class="eclipse-actions">
-          <button id="btn-solar-eclipse" class="action-btn">Solar Eclipse</button>
-          <button id="btn-lunar-eclipse" class="action-btn">Lunar Eclipse</button>
+          <button id="btn-solar-eclipse" class="action-btn eclipse-solar-btn">
+            <span class="eclipse-icon">🌘</span> Solar Eclipse
+          </button>
+          <button id="btn-lunar-eclipse" class="action-btn eclipse-lunar-btn">
+            <span class="eclipse-icon">🌒</span> Lunar Eclipse
+          </button>
         </div>
-        <button id="btn-exit-eclipse" class="action-btn measure-clear-btn" style="margin-top: 10px;" disabled>Exit Simulator</button>
+        <div id="eclipse-info" class="eclipse-info hidden">
+          <p id="eclipse-type-label" class="eclipse-type-label"></p>
+          <p id="eclipse-description" class="eclipse-description"></p>
+        </div>
+        <button id="btn-exit-eclipse" class="action-btn measure-clear-btn" style="margin-top: 10px;" disabled>⏪ Exit Simulator</button>
       </div>
     </div>
     

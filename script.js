@@ -2111,6 +2111,8 @@ function setupMeasurePanelDrag() {
 // ===================================================
 // ECLIPSE SIMULATOR
 // ===================================================
+let eclipseCorona = null;
+
 function toggleEclipsePanel() {
   const panel = document.getElementById('eclipse-panel');
   if (panel) {
@@ -2121,32 +2123,144 @@ function toggleEclipsePanel() {
 }
 
 function simulateEclipse(type) {
+  // Clean up any previous eclipse visuals
+  removeEclipseVisuals();
+  
   isEclipseMode = true;
   eclipseType = type;
   
-  if (simulationSpeed !== 0.02 && simulationSpeed !== 0) {
+  // Save and slow time
+  if (simulationSpeed !== 0 && simulationSpeed !== 0.01) {
     previousSimulationSpeed = simulationSpeed;
   }
-  simulationSpeed = 0.02;
+  simulationSpeed = 0;
+  isPaused = true;
   const speedDisplay = document.getElementById('speed-display');
-  if (speedDisplay) speedDisplay.textContent = `Speed: ${simulationSpeed}x`;
+  if (speedDisplay) speedDisplay.textContent = 'Speed: PAUSED (Eclipse)';
   
   const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
   if (!earthEntry || !moonOrbit || !moon) return;
   
-  // Set Earth to -X axis
+  const earthDist = earthEntry.data.distance;
+  
+  // Place Earth on the negative X axis so the Sun is at origin
   earthEntry.angle = Math.PI;
-  earthEntry.group.position.x = Math.cos(earthEntry.angle) * earthEntry.data.distance;
-  earthEntry.group.position.z = Math.sin(earthEntry.angle) * earthEntry.data.distance;
+  earthEntry.group.position.set(
+    Math.cos(Math.PI) * earthDist,
+    0,
+    0
+  );
+  
+  // Get Earth world position
+  const earthWorldPos = new THREE.Vector3();
+  earthEntry.group.getWorldPosition(earthWorldPos);
   
   if (type === 'solar') {
-    moonOrbit.userData.angle = 0; // Between Earth and Sun
+    // Moon between Earth and Sun (toward the Sun from Earth)
+    moonOrbit.userData.angle = 0;
+    moonOrbit.children[0].position.set(2.5, 0, 0);
+    
+    // Get Moon world position
+    const moonWorldPos = new THREE.Vector3();
+    moon.getWorldPosition(moonWorldPos);
+    
+    // Camera behind Moon looking at the Sun, slightly above
+    const dirToSun = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), moonWorldPos).normalize();
+    const camPos = moonWorldPos.clone().sub(dirToSun.clone().multiplyScalar(1.8));
+    camPos.y += 0.15;
+    
+    // Create a solar corona glow behind the moon
+    const coronaCanvas = document.createElement('canvas');
+    coronaCanvas.width = 512;
+    coronaCanvas.height = 512;
+    const ctx = coronaCanvas.getContext('2d');
+    
+    // Draw radial gradient corona
+    const gradient = ctx.createRadialGradient(256, 256, 30, 256, 256, 256);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.0)');
+    gradient.addColorStop(0.15, 'rgba(255, 240, 200, 0.0)');
+    gradient.addColorStop(0.2, 'rgba(255, 200, 100, 0.8)');
+    gradient.addColorStop(0.35, 'rgba(255, 150, 50, 0.4)');
+    gradient.addColorStop(0.5, 'rgba(255, 100, 30, 0.15)');
+    gradient.addColorStop(0.7, 'rgba(200, 80, 20, 0.05)');
+    gradient.addColorStop(1.0, 'rgba(100, 40, 10, 0.0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Add radial streaks for corona filaments
+    ctx.save();
+    ctx.translate(256, 256);
+    for (let i = 0; i < 48; i++) {
+      const angle = (i / 48) * Math.PI * 2;
+      const len = 60 + Math.random() * 140;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * 40, Math.sin(angle) * 40);
+      ctx.lineTo(Math.cos(angle) * len, Math.sin(angle) * len);
+      ctx.strokeStyle = `rgba(255, ${180 + Math.random() * 75}, ${50 + Math.random() * 100}, ${0.15 + Math.random() * 0.2})`;
+      ctx.lineWidth = 1 + Math.random() * 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+    
+    const coronaTexture = new THREE.CanvasTexture(coronaCanvas);
+    const coronaMaterial = new THREE.SpriteMaterial({
+      map: coronaTexture,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 0
+    });
+    eclipseCorona = new THREE.Sprite(coronaMaterial);
+    eclipseCorona.scale.set(8, 8, 1);
+    eclipseCorona.position.copy(moonWorldPos);
+    scene.add(eclipseCorona);
+    
+    // Animate corona fade in
+    new TWEEN.Tween(coronaMaterial)
+      .to({ opacity: 1.0 }, 2500)
+      .delay(1500)
+      .easing(TWEEN.Easing.Cubic.Out)
+      .start();
+    
+    // Move camera
+    new TWEEN.Tween(camera.position)
+      .to({ x: camPos.x, y: camPos.y, z: camPos.z }, 2500)
+      .easing(TWEEN.Easing.Cubic.InOut)
+      .start();
+    
+    new TWEEN.Tween(controls.target)
+      .to({ x: 0, y: 0, z: 0 }, 2500)
+      .easing(TWEEN.Easing.Cubic.InOut)
+      .start();
+      
   } else {
-    moonOrbit.userData.angle = Math.PI; // Earth between Moon and Sun
+    // LUNAR eclipse: Moon behind Earth (away from Sun)
+    moonOrbit.userData.angle = Math.PI;
+    moonOrbit.children[0].position.set(-2.5, 0, 0);
+    
+    // Get Moon world position
+    const moonWorldPos = new THREE.Vector3();
+    moon.getWorldPosition(moonWorldPos);
+    
+    // Camera positioned to the side, slightly elevated, looking at the Moon
+    const camPos = new THREE.Vector3(
+      moonWorldPos.x - 2,
+      1.5,
+      3
+    );
+    
+    new TWEEN.Tween(camera.position)
+      .to({ x: camPos.x, y: camPos.y, z: camPos.z }, 2500)
+      .easing(TWEEN.Easing.Cubic.InOut)
+      .start();
+    
+    new TWEEN.Tween(controls.target)
+      .to({ x: moonWorldPos.x, y: moonWorldPos.y, z: moonWorldPos.z }, 2500)
+      .easing(TWEEN.Easing.Cubic.InOut)
+      .start();
   }
-  moonOrbit.children[0].position.x = Math.cos(moonOrbit.userData.angle) * 2.5;
-  moonOrbit.children[0].position.z = Math.sin(moonOrbit.userData.angle) * 2.5;
   
+  // Update UI
   const btnSolar = document.getElementById('btn-solar-eclipse');
   const btnLunar = document.getElementById('btn-lunar-eclipse');
   const btnExit = document.getElementById('btn-exit-eclipse');
@@ -2154,35 +2268,40 @@ function simulateEclipse(type) {
   if (btnLunar) btnLunar.disabled = true;
   if (btnExit) btnExit.disabled = false;
   
-  let viewTarget = new THREE.Vector3();
-  let cameraOffset = new THREE.Vector3();
+  // Show educational info
+  const infoDiv = document.getElementById('eclipse-info');
+  const typeLabel = document.getElementById('eclipse-type-label');
+  const descEl = document.getElementById('eclipse-description');
   
-  if (type === 'solar') {
-    // Camera is looking at Earth from behind the Moon
-    viewTarget.copy(earthEntry.group.position);
-    cameraOffset.set(earthEntry.group.position.x + 3.5, 1.0, 1.0);
-  } else {
-    // Camera is looking at Moon from Earth's general direction
-    moon.getWorldPosition(viewTarget);
-    cameraOffset.set(earthEntry.group.position.x + 3.5, 1.0, 2.0);
+  if (infoDiv && typeLabel && descEl) {
+    infoDiv.classList.remove('hidden');
+    if (type === 'solar') {
+      typeLabel.textContent = '☀️ Total Solar Eclipse';
+      descEl.textContent = 'A solar eclipse occurs when the Moon passes between the Sun and Earth, casting a shadow on Earth. The Moon\'s silhouette blocks the Sun\'s photosphere, revealing the stunning solar corona — the Sun\'s outer atmosphere of superheated plasma extending millions of kilometers into space.';
+    } else {
+      typeLabel.textContent = '🌒 Total Lunar Eclipse';
+      descEl.textContent = 'A lunar eclipse occurs when Earth passes between the Sun and Moon, casting Earth\'s shadow on the Moon. The Moon turns a deep copper-red ("Blood Moon") because Earth\'s atmosphere bends and filters sunlight, allowing only red wavelengths to reach the lunar surface.';
+    }
   }
-  
-  new TWEEN.Tween(camera.position)
-    .to({ x: cameraOffset.x, y: cameraOffset.y, z: cameraOffset.z }, 2000)
-    .easing(TWEEN.Easing.Cubic.InOut)
-    .start();
-    
-  new TWEEN.Tween(controls.target)
-    .to({ x: viewTarget.x, y: viewTarget.y, z: viewTarget.z }, 2000)
-    .easing(TWEEN.Easing.Cubic.InOut)
-    .start();
+}
+
+function removeEclipseVisuals() {
+  if (eclipseCorona) {
+    scene.remove(eclipseCorona);
+    if (eclipseCorona.material.map) eclipseCorona.material.map.dispose();
+    eclipseCorona.material.dispose();
+    eclipseCorona = null;
+  }
 }
 
 function exitEclipse() {
+  removeEclipseVisuals();
+  
   isEclipseMode = false;
   eclipseType = null;
   
   simulationSpeed = previousSimulationSpeed;
+  isPaused = false;
   const speedDisplay = document.getElementById('speed-display');
   if (speedDisplay) speedDisplay.textContent = `Speed: ${simulationSpeed}x`;
   
@@ -2193,9 +2312,25 @@ function exitEclipse() {
   if (btnLunar) btnLunar.disabled = false;
   if (btnExit) btnExit.disabled = true;
   
+  // Hide info
+  const infoDiv = document.getElementById('eclipse-info');
+  if (infoDiv) infoDiv.classList.add('hidden');
+  
+  // Zoom out to Earth
   const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
   if (earthEntry) {
-    selectPlanet(earthEntry.data, earthEntry.mesh);
+    const earthPos = new THREE.Vector3();
+    earthEntry.group.getWorldPosition(earthPos);
+    
+    new TWEEN.Tween(camera.position)
+      .to({ x: earthPos.x, y: 8, z: earthPos.z + 15 }, 2000)
+      .easing(TWEEN.Easing.Cubic.InOut)
+      .start();
+    
+    new TWEEN.Tween(controls.target)
+      .to({ x: earthPos.x, y: 0, z: earthPos.z }, 2000)
+      .easing(TWEEN.Easing.Cubic.InOut)
+      .start();
   }
 }
 
