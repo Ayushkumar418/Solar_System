@@ -2195,23 +2195,24 @@ function simulateEclipse(type) {
   addEclipseLabel('MOON', moonPos, 0, MOON_R + 0.6);
   
   // ---- SET CAMERA TO FIXED SIDE VIEW ----
-  // View from +Z looking at the alignment along X axis
-  const midX = (sunPos.x + (type === 'lunar' ? moonPos.x : earthPos.x)) / 2;
-  const viewDist = EARTH_DIST * 1.6;
+  // View from +Z axis looking at the alignment along X axis (like the reference diagram)
+  const farX = type === 'lunar' ? moonPos.x : earthPos.x;
+  const midX = (sunPos.x + farX) / 2;
+  const spanX = Math.abs(farX - sunPos.x);
+  // Camera distance from scene to see the full span with some margin
+  const viewDist = spanX * 0.95;
   
-  controls.enabled = false; // Lock camera
+  // Stop auto-rotation but keep user controls (pan/zoom/rotate) enabled
+  controls.autoRotate = false;
   
   new TWEEN.Tween(camera.position)
-    .to({ x: midX, y: 2, z: viewDist }, 2000)
+    .to({ x: midX, y: 1.5, z: viewDist }, 2000)
     .easing(TWEEN.Easing.Cubic.InOut)
     .start();
   
   new TWEEN.Tween(controls.target)
     .to({ x: midX, y: 0, z: 0 }, 2000)
     .easing(TWEEN.Easing.Cubic.InOut)
-    .onComplete(() => {
-      controls.enabled = false; // Keep locked after tween
-    })
     .start();
   
   // Update UI buttons
@@ -2437,7 +2438,7 @@ function exitEclipse() {
   const speedDisplay = document.getElementById('speed-display');
   if (speedDisplay) speedDisplay.textContent = `Speed: ${simulationSpeed}x`;
   
-  controls.enabled = true; // Unlock camera
+  // Restore controls (they were never locked, only rotation was paused)
   
   const btnSolar = document.getElementById('btn-solar-eclipse');
   const btnLunar = document.getElementById('btn-lunar-eclipse');
