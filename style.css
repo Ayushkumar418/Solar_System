@@ -914,8 +914,9 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.measure-target {
+.measure-target-input {
   flex: 1;
+  width: 40%;
   padding: 8px;
   background: rgba(74, 144, 217, 0.15);
   border: 1px solid rgba(74, 144, 217, 0.3);
@@ -926,19 +927,34 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
+  outline: none;
 }
 
-.measure-target.empty {
+.measure-target-input:focus {
+  background: rgba(74, 144, 217, 0.25);
+  border-color: #4a90d9;
+}
+
+.measure-target-input.empty {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.4);
   font-weight: normal;
 }
 
-.measure-target.active-selection {
+.measure-target-input.active-selection {
   border-color: #4a90d9;
   box-shadow: 0 0 10px rgba(74, 144, 217, 0.5);
   animation: pulse-border 1.5s infinite;
+}
+
+.drag-handle {
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 @keyframes pulse-border {

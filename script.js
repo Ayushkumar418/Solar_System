@@ -827,6 +827,10 @@ function updateComets(delta) {
 
 function setupEventListeners() {
   window.addEventListener('resize', onWindowResize);
+  
+  populateMeasureDatalist();
+  setupMeasurePanelDrag();
+
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('click', onMouseClick);
   window.addEventListener('dblclick', onDoubleClick);
@@ -1242,6 +1246,39 @@ function setupUIControls() {
   
   const clearMeasureBtn = document.getElementById('btn-measure-clear');
   if (clearMeasureBtn) clearMeasureBtn.addEventListener('click', clearMeasurement);
+
+  const target1Input = document.getElementById('measure-target-1');
+  const target2Input = document.getElementById('measure-target-2');
+  if (target1Input) {
+    target1Input.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (measureSelection.length >= 1) clearMeasurement();
+      if (!val) return;
+      const found = findBodyByName(val);
+      if (found) {
+        handleMeasureSelection(found);
+      } else {
+        e.target.value = '';
+      }
+    });
+  }
+  if (target2Input) {
+    target2Input.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (measureSelection.length === 2) {
+        const firstFound = measureSelection[0];
+        clearMeasurement();
+        handleMeasureSelection(firstFound);
+      }
+      if (!val) return;
+      const found = findBodyByName(val);
+      if (found) {
+        handleMeasureSelection(found);
+      } else {
+        e.target.value = '';
+      }
+    });
+  }
 
   const dwarfBtn = document.getElementById('toggle-dwarf-planets');
   if (dwarfBtn) dwarfBtn.addEventListener('click', toggleDwarfPlanets);
@@ -1890,13 +1927,14 @@ function handleMeasureSelection(found) {
   const target2 = document.getElementById('measure-target-2');
   
   if (measureSelection.length === 1) {
-    target1.textContent = found.data ? found.data.name : found.name;
+    target1.value = found.data ? found.data.name : found.name;
     target1.classList.remove('empty');
     target1.classList.remove('active-selection');
+    target2.disabled = false;
     target2.classList.add('active-selection');
     document.getElementById('measure-instruction').textContent = "Select the second celestial body...";
   } else if (measureSelection.length === 2) {
-    target2.textContent = found.data ? found.data.name : found.name;
+    target2.value = found.data ? found.data.name : found.name;
     target2.classList.remove('empty');
     target2.classList.remove('active-selection');
     document.getElementById('measure-instruction').textContent = "Measurement complete.";
@@ -1934,12 +1972,14 @@ function clearMeasurement() {
   const target1 = document.getElementById('measure-target-1');
   const target2 = document.getElementById('measure-target-2');
   if (target1) {
-    target1.textContent = "Target 1";
-    target1.className = "measure-target empty active-selection";
+    target1.value = "";
+    target1.className = "measure-target-input empty active-selection";
+    target1.disabled = false;
   }
   if (target2) {
-    target2.textContent = "Target 2";
-    target2.className = "measure-target empty";
+    target2.value = "";
+    target2.className = "measure-target-input empty";
+    target2.disabled = true;
   }
   
   const instruction = document.getElementById('measure-instruction');
@@ -1978,6 +2018,75 @@ function updateMeasurement() {
   
   const valEl = document.getElementById('measure-distance-value');
   if (valEl) valEl.textContent = displayStr;
+}
+
+function findBodyByName(name) {
+  const query = name.toLowerCase().trim();
+  const clickables = getClickableObjects();
+  for (const obj of clickables) {
+    const found = resolveIntersection(obj);
+    if (found) {
+      const foundName = (found.data ? found.data.name : found.name).toLowerCase();
+      if (foundName === query) return found;
+    }
+  }
+  return null;
+}
+
+function populateMeasureDatalist() {
+  const datalist = document.getElementById('celestial-bodies-list');
+  if (!datalist) return;
+  datalist.innerHTML = '';
+  
+  const clickables = getClickableObjects();
+  const names = new Set();
+  
+  for (const obj of clickables) {
+    const found = resolveIntersection(obj);
+    if (found) {
+      const name = found.data ? found.data.name : found.name;
+      if (name) names.add(name);
+    }
+  }
+  
+  names.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    datalist.appendChild(opt);
+  });
+}
+
+function setupMeasurePanelDrag() {
+  const panel = document.getElementById('measure-panel');
+  const header = document.getElementById('measure-panel-header');
+  if (!panel || !header) return;
+  
+  let isDragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+  
+  header.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    const rect = panel.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    
+    panel.style.transform = 'none';
+    panel.style.left = rect.left + 'px';
+    panel.style.top = rect.top + 'px';
+    panel.style.bottom = 'auto';
+    panel.style.right = 'auto';
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    panel.style.left = (e.clientX - offsetX) + 'px';
+    panel.style.top = (e.clientY - offsetY) + 'px';
+  });
+  
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
 }
 
 // ===================================================

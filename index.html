@@ -113,16 +113,16 @@
     
     <!-- Measure Distance Panel -->
     <div id="measure-panel" class="glass-panel hidden">
-      <div class="panel-header">
+      <div class="panel-header drag-handle" id="measure-panel-header" title="Drag to move">
         <h2>Distance Measurement</h2>
         <button id="close-measure" class="close-btn">×</button>
       </div>
       <div id="measure-content">
-        <p id="measure-instruction" class="measure-instruction">Select the first celestial body...</p>
+        <p id="measure-instruction" class="measure-instruction">Select or type the first celestial body...</p>
         <div class="measure-targets">
-          <div id="measure-target-1" class="measure-target empty">Target 1</div>
+          <input type="text" id="measure-target-1" class="measure-target-input active-selection" placeholder="Target 1" list="celestial-bodies-list">
           <div class="measure-line-icon">⟷</div>
-          <div id="measure-target-2" class="measure-target empty">Target 2</div>
+          <input type="text" id="measure-target-2" class="measure-target-input empty" placeholder="Target 2" list="celestial-bodies-list" disabled>
         </div>
         <div id="measure-result" class="measure-result hidden">
           <span class="measure-label">Distance:</span>
@@ -131,6 +131,8 @@
         <button id="btn-measure-clear" class="action-btn measure-clear-btn" disabled>Clear</button>
       </div>
     </div>
+    
+    <datalist id="celestial-bodies-list"></datalist>
 
     <!-- Quiz Panel Modal -->
     <div id="quiz-panel" class="glass-panel hidden">
