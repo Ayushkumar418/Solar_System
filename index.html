@@ -106,8 +106,25 @@
         <div class="button-row">
           <button id="btn-quiz" class="action-btn quiz-btn">🧠 Quiz Mode</button>
           <button id="btn-measure" class="action-btn measure-btn">📏 Measure</button>
+          <button id="btn-eclipse" class="action-btn eclipse-btn">🌑 Eclipse Sim</button>
         </div>
         </div>
+      </div>
+    </div>
+    
+    <!-- Eclipse Simulator Panel -->
+    <div id="eclipse-panel" class="glass-panel hidden">
+      <div class="panel-header drag-handle" id="eclipse-panel-header" title="Drag to move">
+        <h2>Eclipse Simulator</h2>
+        <button id="close-eclipse" class="close-btn">×</button>
+      </div>
+      <div id="eclipse-content">
+        <p class="measure-instruction">Simulate a perfect alignment of the Earth, Moon, and Sun.</p>
+        <div class="eclipse-actions">
+          <button id="btn-solar-eclipse" class="action-btn">Solar Eclipse</button>
+          <button id="btn-lunar-eclipse" class="action-btn">Lunar Eclipse</button>
+        </div>
+        <button id="btn-exit-eclipse" class="action-btn measure-clear-btn" style="margin-top: 10px;" disabled>Exit Simulator</button>
       </div>
     </div>
     

@@ -54,6 +54,9 @@ let showConstellations = false;
 let isMeasuring = false;
 let measureSelection = [];
 let measureLineMesh = null;
+let isEclipseMode = false;
+let eclipseType = null;
+let previousSimulationSpeed = 1.0;
 let kuiperBelt, oortCloud, constellations;
 
 let raycaster, mouse;
@@ -830,6 +833,7 @@ function setupEventListeners() {
   
   populateMeasureDatalist();
   setupMeasurePanelDrag();
+  setupEclipsePanelDrag();
 
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('click', onMouseClick);
@@ -1246,6 +1250,21 @@ function setupUIControls() {
   
   const clearMeasureBtn = document.getElementById('btn-measure-clear');
   if (clearMeasureBtn) clearMeasureBtn.addEventListener('click', clearMeasurement);
+
+  const eclipseBtn = document.getElementById('btn-eclipse');
+  if (eclipseBtn) eclipseBtn.addEventListener('click', toggleEclipsePanel);
+  
+  const closeEclipseBtn = document.getElementById('close-eclipse');
+  if (closeEclipseBtn) closeEclipseBtn.addEventListener('click', toggleEclipsePanel);
+  
+  const btnSolar = document.getElementById('btn-solar-eclipse');
+  if (btnSolar) btnSolar.addEventListener('click', () => simulateEclipse('solar'));
+  
+  const btnLunar = document.getElementById('btn-lunar-eclipse');
+  if (btnLunar) btnLunar.addEventListener('click', () => simulateEclipse('lunar'));
+  
+  const btnExitEclipse = document.getElementById('btn-exit-eclipse');
+  if (btnExitEclipse) btnExitEclipse.addEventListener('click', exitEclipse);
 
   const target1Input = document.getElementById('measure-target-1');
   const target2Input = document.getElementById('measure-target-2');
@@ -2059,6 +2078,128 @@ function populateMeasureDatalist() {
 function setupMeasurePanelDrag() {
   const panel = document.getElementById('measure-panel');
   const header = document.getElementById('measure-panel-header');
+  if (!panel || !header) return;
+  
+  let isDragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+  
+  header.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    const rect = panel.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    
+    panel.style.transform = 'none';
+    panel.style.left = rect.left + 'px';
+    panel.style.top = rect.top + 'px';
+    panel.style.bottom = 'auto';
+    panel.style.right = 'auto';
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    panel.style.left = (e.clientX - offsetX) + 'px';
+    panel.style.top = (e.clientY - offsetY) + 'px';
+  });
+  
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+}
+
+// ===================================================
+// ECLIPSE SIMULATOR
+// ===================================================
+function toggleEclipsePanel() {
+  const panel = document.getElementById('eclipse-panel');
+  if (panel) {
+    panel.classList.toggle('hidden');
+    const btn = document.getElementById('btn-eclipse');
+    if (btn) btn.classList.toggle('active', !panel.classList.contains('hidden'));
+  }
+}
+
+function simulateEclipse(type) {
+  isEclipseMode = true;
+  eclipseType = type;
+  
+  if (simulationSpeed !== 0.02 && simulationSpeed !== 0) {
+    previousSimulationSpeed = simulationSpeed;
+  }
+  simulationSpeed = 0.02;
+  updateSpeedDisplay();
+  
+  const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
+  if (!earthEntry || !moonOrbit || !moon) return;
+  
+  // Set Earth to -X axis
+  earthEntry.angle = Math.PI;
+  earthEntry.group.position.x = Math.cos(earthEntry.angle) * earthEntry.data.distance;
+  earthEntry.group.position.z = Math.sin(earthEntry.angle) * earthEntry.data.distance;
+  
+  if (type === 'solar') {
+    moonOrbit.userData.angle = 0; // Between Earth and Sun
+  } else {
+    moonOrbit.userData.angle = Math.PI; // Earth between Moon and Sun
+  }
+  moonOrbit.children[0].position.x = Math.cos(moonOrbit.userData.angle) * 2.5;
+  moonOrbit.children[0].position.z = Math.sin(moonOrbit.userData.angle) * 2.5;
+  
+  const btnSolar = document.getElementById('btn-solar-eclipse');
+  const btnLunar = document.getElementById('btn-lunar-eclipse');
+  const btnExit = document.getElementById('btn-exit-eclipse');
+  if (btnSolar) btnSolar.disabled = true;
+  if (btnLunar) btnLunar.disabled = true;
+  if (btnExit) btnExit.disabled = false;
+  
+  let viewTarget = new THREE.Vector3();
+  let cameraOffset = new THREE.Vector3();
+  
+  if (type === 'solar') {
+    // Camera is looking at Earth from behind the Moon
+    viewTarget.copy(earthEntry.group.position);
+    cameraOffset.set(earthEntry.group.position.x + 3.5, 1.0, 1.0);
+  } else {
+    // Camera is looking at Moon from Earth's general direction
+    moon.getWorldPosition(viewTarget);
+    cameraOffset.set(earthEntry.group.position.x + 3.5, 1.0, 2.0);
+  }
+  
+  new TWEEN.Tween(camera.position)
+    .to({ x: cameraOffset.x, y: cameraOffset.y, z: cameraOffset.z }, 2000)
+    .easing(TWEEN.Easing.Cubic.InOut)
+    .start();
+    
+  new TWEEN.Tween(controls.target)
+    .to({ x: viewTarget.x, y: viewTarget.y, z: viewTarget.z }, 2000)
+    .easing(TWEEN.Easing.Cubic.InOut)
+    .start();
+}
+
+function exitEclipse() {
+  isEclipseMode = false;
+  eclipseType = null;
+  
+  simulationSpeed = previousSimulationSpeed;
+  updateSpeedDisplay();
+  
+  const btnSolar = document.getElementById('btn-solar-eclipse');
+  const btnLunar = document.getElementById('btn-lunar-eclipse');
+  const btnExit = document.getElementById('btn-exit-eclipse');
+  if (btnSolar) btnSolar.disabled = false;
+  if (btnLunar) btnLunar.disabled = false;
+  if (btnExit) btnExit.disabled = true;
+  
+  const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
+  if (earthEntry) {
+    selectPlanet(earthEntry.data, earthEntry.mesh);
+  }
+}
+
+function setupEclipsePanelDrag() {
+  const panel = document.getElementById('eclipse-panel');
+  const header = document.getElementById('eclipse-panel-header');
   if (!panel || !header) return;
   
   let isDragging = false;

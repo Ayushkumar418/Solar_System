@@ -236,6 +236,24 @@ html, body {
   color: #fff;
 }
 
+
+.eclipse-btn {
+  background: rgba(160, 100, 30, 0.4);
+  border-color: rgba(220, 150, 60, 0.6);
+  flex: 1;
+}
+
+.eclipse-btn:hover, .eclipse-btn.active {
+  background: rgba(200, 130, 40, 0.7);
+  box-shadow: 0 0 15px rgba(220, 150, 60, 0.4);
+}
+
+.eclipse-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
 #speed-display {
   text-align: center;
   font-size: 12px;
