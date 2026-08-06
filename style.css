@@ -314,6 +314,18 @@ html, body {
   margin: 0;
 }
 
+.eclipse-diagram-label {
+  color: #ffffff;
+  font-family: 'Exo 2', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 #speed-display {
   text-align: center;
   font-size: 12px;

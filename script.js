@@ -2111,7 +2111,8 @@ function setupMeasurePanelDrag() {
 // ===================================================
 // ECLIPSE SIMULATOR
 // ===================================================
-let eclipseCorona = null;
+let eclipseVisuals = []; // All THREE objects added during eclipse
+let eclipseLabels = [];  // All CSS2DObjects added
 
 function toggleEclipsePanel() {
   const panel = document.getElementById('eclipse-panel');
@@ -2129,8 +2130,8 @@ function simulateEclipse(type) {
   isEclipseMode = true;
   eclipseType = type;
   
-  // Save and slow time
-  if (simulationSpeed !== 0 && simulationSpeed !== 0.01) {
+  // Save and pause time
+  if (simulationSpeed !== 0) {
     previousSimulationSpeed = simulationSpeed;
   }
   simulationSpeed = 0;
@@ -2141,126 +2142,79 @@ function simulateEclipse(type) {
   const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
   if (!earthEntry || !moonOrbit || !moon) return;
   
-  const earthDist = earthEntry.data.distance;
+  const SUN_R = 4;       // Sun radius
+  const EARTH_R = 1.0;   // Earth radius
+  const MOON_R = 0.27;   // Moon radius
+  const EARTH_DIST = earthEntry.data.distance; // 15
+  const MOON_ORBIT_R = 2.5;
   
-  // Place Earth on the negative X axis so the Sun is at origin
-  earthEntry.angle = Math.PI;
-  earthEntry.group.position.set(
-    Math.cos(Math.PI) * earthDist,
-    0,
-    0
-  );
-  
-  // Get Earth world position
-  const earthWorldPos = new THREE.Vector3();
-  earthEntry.group.getWorldPosition(earthWorldPos);
+  // Place Earth on the +X axis so Sun is at origin and alignment is along X
+  earthEntry.angle = 0;
+  earthEntry.group.position.set(EARTH_DIST, 0, 0);
   
   if (type === 'solar') {
-    // Moon between Earth and Sun (toward the Sun from Earth)
-    moonOrbit.userData.angle = 0;
-    moonOrbit.children[0].position.set(2.5, 0, 0);
-    
-    // Get Moon world position
-    const moonWorldPos = new THREE.Vector3();
-    moon.getWorldPosition(moonWorldPos);
-    
-    // Camera behind Moon looking at the Sun, slightly above
-    const dirToSun = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), moonWorldPos).normalize();
-    const camPos = moonWorldPos.clone().sub(dirToSun.clone().multiplyScalar(1.8));
-    camPos.y += 0.15;
-    
-    // Create a solar corona glow behind the moon
-    const coronaCanvas = document.createElement('canvas');
-    coronaCanvas.width = 512;
-    coronaCanvas.height = 512;
-    const ctx = coronaCanvas.getContext('2d');
-    
-    // Draw radial gradient corona
-    const gradient = ctx.createRadialGradient(256, 256, 30, 256, 256, 256);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.0)');
-    gradient.addColorStop(0.15, 'rgba(255, 240, 200, 0.0)');
-    gradient.addColorStop(0.2, 'rgba(255, 200, 100, 0.8)');
-    gradient.addColorStop(0.35, 'rgba(255, 150, 50, 0.4)');
-    gradient.addColorStop(0.5, 'rgba(255, 100, 30, 0.15)');
-    gradient.addColorStop(0.7, 'rgba(200, 80, 20, 0.05)');
-    gradient.addColorStop(1.0, 'rgba(100, 40, 10, 0.0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 512, 512);
-    
-    // Add radial streaks for corona filaments
-    ctx.save();
-    ctx.translate(256, 256);
-    for (let i = 0; i < 48; i++) {
-      const angle = (i / 48) * Math.PI * 2;
-      const len = 60 + Math.random() * 140;
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(angle) * 40, Math.sin(angle) * 40);
-      ctx.lineTo(Math.cos(angle) * len, Math.sin(angle) * len);
-      ctx.strokeStyle = `rgba(255, ${180 + Math.random() * 75}, ${50 + Math.random() * 100}, ${0.15 + Math.random() * 0.2})`;
-      ctx.lineWidth = 1 + Math.random() * 2;
-      ctx.stroke();
-    }
-    ctx.restore();
-    
-    const coronaTexture = new THREE.CanvasTexture(coronaCanvas);
-    const coronaMaterial = new THREE.SpriteMaterial({
-      map: coronaTexture,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      opacity: 0
-    });
-    eclipseCorona = new THREE.Sprite(coronaMaterial);
-    eclipseCorona.scale.set(8, 8, 1);
-    eclipseCorona.position.copy(moonWorldPos);
-    scene.add(eclipseCorona);
-    
-    // Animate corona fade in
-    new TWEEN.Tween(coronaMaterial)
-      .to({ opacity: 1.0 }, 2500)
-      .delay(1500)
-      .easing(TWEEN.Easing.Cubic.Out)
-      .start();
-    
-    // Move camera
-    new TWEEN.Tween(camera.position)
-      .to({ x: camPos.x, y: camPos.y, z: camPos.z }, 2500)
-      .easing(TWEEN.Easing.Cubic.InOut)
-      .start();
-    
-    new TWEEN.Tween(controls.target)
-      .to({ x: 0, y: 0, z: 0 }, 2500)
-      .easing(TWEEN.Easing.Cubic.InOut)
-      .start();
-      
+    // Moon between Earth and Sun
+    moonOrbit.userData.angle = Math.PI; // toward Sun
+    moonOrbit.children[0].position.set(-MOON_ORBIT_R, 0, 0);
   } else {
-    // LUNAR eclipse: Moon behind Earth (away from Sun)
-    moonOrbit.userData.angle = Math.PI;
-    moonOrbit.children[0].position.set(-2.5, 0, 0);
-    
-    // Get Moon world position
-    const moonWorldPos = new THREE.Vector3();
-    moon.getWorldPosition(moonWorldPos);
-    
-    // Camera positioned to the side, slightly elevated, looking at the Moon
-    const camPos = new THREE.Vector3(
-      moonWorldPos.x - 2,
-      1.5,
-      3
-    );
-    
-    new TWEEN.Tween(camera.position)
-      .to({ x: camPos.x, y: camPos.y, z: camPos.z }, 2500)
-      .easing(TWEEN.Easing.Cubic.InOut)
-      .start();
-    
-    new TWEEN.Tween(controls.target)
-      .to({ x: moonWorldPos.x, y: moonWorldPos.y, z: moonWorldPos.z }, 2500)
-      .easing(TWEEN.Easing.Cubic.InOut)
-      .start();
+    // Moon behind Earth (away from Sun)
+    moonOrbit.userData.angle = 0;
+    moonOrbit.children[0].position.set(MOON_ORBIT_R, 0, 0);
   }
   
-  // Update UI
+  // Get world positions after placement
+  const sunPos = new THREE.Vector3(0, 0, 0);
+  const earthPos = new THREE.Vector3();
+  earthEntry.group.getWorldPosition(earthPos);
+  const moonPos = new THREE.Vector3();
+  moon.getWorldPosition(moonPos);
+  
+  // ---- DRAW SHADOW DIAGRAM ----
+  const dashedMat = new THREE.LineDashedMaterial({
+    color: 0xffffff,
+    dashSize: 0.4,
+    gapSize: 0.2,
+    transparent: true,
+    opacity: 0.5,
+    linewidth: 1
+  });
+  
+  if (type === 'solar') {
+    // Shadow cast by Moon onto Earth
+    // Blocker = Moon, Target = Earth
+    drawShadowDiagram(sunPos, SUN_R, moonPos, MOON_R, earthPos, EARTH_R, dashedMat);
+  } else {
+    // Shadow cast by Earth onto Moon
+    // Blocker = Earth, Target = Moon
+    drawShadowDiagram(sunPos, SUN_R, earthPos, EARTH_R, moonPos, MOON_R, dashedMat);
+  }
+  
+  // ---- ADD LABELS ----
+  addEclipseLabel('SUN', sunPos, 0, SUN_R + 1.2);
+  addEclipseLabel('EARTH', earthPos, 0, EARTH_R + 0.8);
+  addEclipseLabel('MOON', moonPos, 0, MOON_R + 0.6);
+  
+  // ---- SET CAMERA TO FIXED SIDE VIEW ----
+  // View from +Z looking at the alignment along X axis
+  const midX = (sunPos.x + (type === 'lunar' ? moonPos.x : earthPos.x)) / 2;
+  const viewDist = EARTH_DIST * 1.6;
+  
+  controls.enabled = false; // Lock camera
+  
+  new TWEEN.Tween(camera.position)
+    .to({ x: midX, y: 2, z: viewDist }, 2000)
+    .easing(TWEEN.Easing.Cubic.InOut)
+    .start();
+  
+  new TWEEN.Tween(controls.target)
+    .to({ x: midX, y: 0, z: 0 }, 2000)
+    .easing(TWEEN.Easing.Cubic.InOut)
+    .onComplete(() => {
+      controls.enabled = false; // Keep locked after tween
+    })
+    .start();
+  
+  // Update UI buttons
   const btnSolar = document.getElementById('btn-solar-eclipse');
   const btnLunar = document.getElementById('btn-lunar-eclipse');
   const btnExit = document.getElementById('btn-exit-eclipse');
@@ -2277,21 +2231,199 @@ function simulateEclipse(type) {
     infoDiv.classList.remove('hidden');
     if (type === 'solar') {
       typeLabel.textContent = '☀️ Total Solar Eclipse';
-      descEl.textContent = 'A solar eclipse occurs when the Moon passes between the Sun and Earth, casting a shadow on Earth. The Moon\'s silhouette blocks the Sun\'s photosphere, revealing the stunning solar corona — the Sun\'s outer atmosphere of superheated plasma extending millions of kilometers into space.';
+      descEl.textContent = 'The Moon passes between the Sun and Earth. The dark inner cone (Umbra) is the region of total eclipse. The lighter outer cone (Penumbra) sees a partial eclipse.';
     } else {
       typeLabel.textContent = '🌒 Total Lunar Eclipse';
-      descEl.textContent = 'A lunar eclipse occurs when Earth passes between the Sun and Moon, casting Earth\'s shadow on the Moon. The Moon turns a deep copper-red ("Blood Moon") because Earth\'s atmosphere bends and filters sunlight, allowing only red wavelengths to reach the lunar surface.';
+      descEl.textContent = 'Earth passes between the Sun and Moon. Earth\'s shadow darkens the Moon, turning it copper-red ("Blood Moon") as only red wavelengths bend through our atmosphere.';
     }
   }
 }
 
-function removeEclipseVisuals() {
-  if (eclipseCorona) {
-    scene.remove(eclipseCorona);
-    if (eclipseCorona.material.map) eclipseCorona.material.map.dispose();
-    eclipseCorona.material.dispose();
-    eclipseCorona = null;
+/**
+ * Draw the shadow cone diagram: tangent lines from the Sun's edges
+ * past the blocker body, forming Umbra and Penumbra cones.
+ */
+function drawShadowDiagram(sunPos, sunR, blockerPos, blockerR, targetPos, targetR, dashedMat) {
+  // All positions are on the X axis (Y=0, Z=0)
+  const sx = sunPos.x;
+  const bx = blockerPos.x;
+  const tx = targetPos.x;
+  
+  // Extend shadow past target
+  const extendX = tx + (tx - sx) * 0.3;
+  
+  // ---- UMBRA lines (cross lines: Sun top → Blocker bottom, Sun bottom → Blocker top) ----
+  // These cross and form the inner dark shadow cone
+  
+  // Line from Sun top edge to Blocker bottom edge, extended
+  const umbraLine1Start = new THREE.Vector3(sx, sunR, 0);
+  const umbraLine1Mid = new THREE.Vector3(bx, -blockerR, 0);
+  const umbraDir1 = new THREE.Vector3().subVectors(umbraLine1Mid, umbraLine1Start).normalize();
+  const umbraLine1End = getLinePointAtX(umbraLine1Start, umbraDir1, extendX);
+  
+  // Line from Sun bottom edge to Blocker top edge, extended
+  const umbraLine2Start = new THREE.Vector3(sx, -sunR, 0);
+  const umbraLine2Mid = new THREE.Vector3(bx, blockerR, 0);
+  const umbraDir2 = new THREE.Vector3().subVectors(umbraLine2Mid, umbraLine2Start).normalize();
+  const umbraLine2End = getLinePointAtX(umbraLine2Start, umbraDir2, extendX);
+  
+  addEclipseLine([umbraLine1Start, umbraLine1End], dashedMat);
+  addEclipseLine([umbraLine2Start, umbraLine2End], dashedMat);
+  
+  // ---- PENUMBRA lines (same-side: Sun top → Blocker top, Sun bottom → Blocker bottom) ----
+  const penLine1Start = new THREE.Vector3(sx, sunR, 0);
+  const penLine1Mid = new THREE.Vector3(bx, blockerR, 0);
+  const penDir1 = new THREE.Vector3().subVectors(penLine1Mid, penLine1Start).normalize();
+  const penLine1End = getLinePointAtX(penLine1Start, penDir1, extendX);
+  
+  const penLine2Start = new THREE.Vector3(sx, -sunR, 0);
+  const penLine2Mid = new THREE.Vector3(bx, -blockerR, 0);
+  const penDir2 = new THREE.Vector3().subVectors(penLine2Mid, penLine2Start).normalize();
+  const penLine2End = getLinePointAtX(penLine2Start, penDir2, extendX);
+  
+  addEclipseLine([penLine1Start, penLine1End], dashedMat);
+  addEclipseLine([penLine2Start, penLine2End], dashedMat);
+  
+  // ---- UMBRA CONE (dark inner shadow) ----
+  // Find where the two umbra lines cross (umbra tip)
+  const crossPoint = lineIntersectionXY(umbraLine1Start, umbraDir1, umbraLine2Start, umbraDir2);
+  
+  if (crossPoint) {
+    // Dark umbra cone from blocker to tip
+    const umbraShape = new THREE.Shape();
+    umbraShape.moveTo(bx, -blockerR);
+    umbraShape.lineTo(crossPoint.x, crossPoint.y);
+    umbraShape.lineTo(bx, blockerR);
+    umbraShape.lineTo(bx, -blockerR);
+    
+    const umbraGeo = new THREE.ShapeGeometry(umbraShape);
+    const umbraMat = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const umbraMesh = new THREE.Mesh(umbraGeo, umbraMat);
+    scene.add(umbraMesh);
+    eclipseVisuals.push(umbraMesh);
+    
+    // Umbra label at mid-point of cone
+    const umbraLabelX = (bx + crossPoint.x) / 2;
+    const umbraLabelY = -blockerR * 0.5 - 0.6;
+    addEclipseLabel('Umbra', new THREE.Vector3(umbraLabelX, umbraLabelY, 0), 0, 0, '#ff6b6b');
   }
+  
+  // ---- PENUMBRA CONE (lighter outer shadow) ----
+  // From blocker edges to the target and beyond
+  const penTopAtTarget = getLinePointAtX(penLine1Start, penDir1, tx);
+  const penBotAtTarget = getLinePointAtX(penLine2Start, penDir2, tx);
+  const umbraTopAtTarget = getLinePointAtX(umbraLine1Start, umbraDir1, tx);
+  const umbraBotAtTarget = getLinePointAtX(umbraLine2Start, umbraDir2, tx);
+  
+  // Top penumbra strip (between pen top line and umbra cross line)
+  const penTopShape = new THREE.Shape();
+  penTopShape.moveTo(bx, blockerR);
+  penTopShape.lineTo(penTopAtTarget.x, penTopAtTarget.y);
+  if (crossPoint && crossPoint.x > tx) {
+    penTopShape.lineTo(umbraTopAtTarget.x, umbraTopAtTarget.y);
+  } else if (crossPoint) {
+    penTopShape.lineTo(crossPoint.x, crossPoint.y);
+  }
+  penTopShape.lineTo(bx, blockerR);
+  
+  const penTopGeo = new THREE.ShapeGeometry(penTopShape);
+  const penMat = new THREE.MeshBasicMaterial({
+    color: 0x1a1a3a,
+    transparent: true,
+    opacity: 0.25,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const penTopMesh = new THREE.Mesh(penTopGeo, penMat);
+  scene.add(penTopMesh);
+  eclipseVisuals.push(penTopMesh);
+  
+  // Bottom penumbra strip
+  const penBotShape = new THREE.Shape();
+  penBotShape.moveTo(bx, -blockerR);
+  penBotShape.lineTo(penBotAtTarget.x, penBotAtTarget.y);
+  if (crossPoint && crossPoint.x > tx) {
+    penBotShape.lineTo(umbraBotAtTarget.x, umbraBotAtTarget.y);
+  } else if (crossPoint) {
+    penBotShape.lineTo(crossPoint.x, crossPoint.y);
+  }
+  penBotShape.lineTo(bx, -blockerR);
+  
+  const penBotGeo = new THREE.ShapeGeometry(penBotShape);
+  const penBotMesh = new THREE.Mesh(penBotGeo, penMat.clone());
+  scene.add(penBotMesh);
+  eclipseVisuals.push(penBotMesh);
+  
+  // Penumbra label
+  const penLabelX = (bx + tx) / 2;
+  const penLabelY = (penTopAtTarget.y + (crossPoint ? Math.min(umbraTopAtTarget.y, penTopAtTarget.y) : 0)) / 2 + 1.0;
+  addEclipseLabel('Penumbra', new THREE.Vector3(penLabelX, -blockerR - 1.5, 0), 0, 0, '#ff9f43');
+}
+
+function getLinePointAtX(origin, direction, targetX) {
+  // Given a line from origin in direction, find where it reaches targetX
+  if (Math.abs(direction.x) < 0.0001) return origin.clone();
+  const t = (targetX - origin.x) / direction.x;
+  return new THREE.Vector3(
+    origin.x + direction.x * t,
+    origin.y + direction.y * t,
+    origin.z + direction.z * t
+  );
+}
+
+function lineIntersectionXY(p1, d1, p2, d2) {
+  // Find intersection of two 2D lines in XY plane
+  const det = d1.x * d2.y - d1.y * d2.x;
+  if (Math.abs(det) < 0.0001) return null;
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const t = (dx * d2.y - dy * d2.x) / det;
+  return new THREE.Vector3(p1.x + d1.x * t, p1.y + d1.y * t, 0);
+}
+
+function addEclipseLine(points, material) {
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const line = new THREE.Line(geometry, material.clone());
+  line.computeLineDistances();
+  scene.add(line);
+  eclipseVisuals.push(line);
+}
+
+function addEclipseLabel(text, position, offsetX, offsetY, color) {
+  const div = document.createElement('div');
+  div.className = 'eclipse-diagram-label';
+  div.textContent = text;
+  if (color) div.style.color = color;
+  const label = new CSS2DObject(div);
+  label.position.set(position.x + (offsetX || 0), position.y + (offsetY || 0), position.z);
+  scene.add(label);
+  eclipseVisuals.push(label);
+  eclipseLabels.push({ object: label, element: div });
+}
+
+function removeEclipseVisuals() {
+  eclipseVisuals.forEach(obj => {
+    scene.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (obj.material.map) obj.material.map.dispose();
+      obj.material.dispose();
+    }
+  });
+  eclipseVisuals = [];
+  
+  eclipseLabels.forEach(l => {
+    if (l.element && l.element.parentNode) {
+      l.element.parentNode.removeChild(l.element);
+    }
+  });
+  eclipseLabels = [];
 }
 
 function exitEclipse() {
@@ -2305,6 +2437,8 @@ function exitEclipse() {
   const speedDisplay = document.getElementById('speed-display');
   if (speedDisplay) speedDisplay.textContent = `Speed: ${simulationSpeed}x`;
   
+  controls.enabled = true; // Unlock camera
+  
   const btnSolar = document.getElementById('btn-solar-eclipse');
   const btnLunar = document.getElementById('btn-lunar-eclipse');
   const btnExit = document.getElementById('btn-exit-eclipse');
@@ -2316,7 +2450,7 @@ function exitEclipse() {
   const infoDiv = document.getElementById('eclipse-info');
   if (infoDiv) infoDiv.classList.add('hidden');
   
-  // Zoom out to Earth
+  // Zoom out
   const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
   if (earthEntry) {
     const earthPos = new THREE.Vector3();
