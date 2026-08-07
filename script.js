@@ -2206,8 +2206,7 @@ function simulateEclipse(type) {
   const btnSolar = document.getElementById('btn-solar-eclipse');
   const btnLunar = document.getElementById('btn-lunar-eclipse');
   const btnExit = document.getElementById('btn-exit-eclipse');
-  if (btnSolar) btnSolar.disabled = true;
-  if (btnLunar) btnLunar.disabled = true;
+  
   if (btnExit) {
     btnExit.disabled = false;
     btnExit.style.pointerEvents = 'auto';
