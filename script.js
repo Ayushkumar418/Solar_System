@@ -2142,9 +2142,9 @@ function simulateEclipse(type) {
   const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
   if (!earthEntry || !moonOrbit || !moon) return;
   
-  const SUN_R = 4;       // Sun radius
-  const EARTH_R = 1.0;   // Earth radius
-  const MOON_R = 0.27;   // Moon radius
+  const SUN_R = 4;
+  const EARTH_R = 1.0;
+  const MOON_R = 0.27;
   const EARTH_DIST = earthEntry.data.distance; // 15
   const MOON_ORBIT_R = 2.5;
   
@@ -2153,8 +2153,8 @@ function simulateEclipse(type) {
   earthEntry.group.position.set(EARTH_DIST, 0, 0);
   
   if (type === 'solar') {
-    // Moon between Earth and Sun
-    moonOrbit.userData.angle = Math.PI; // toward Sun
+    // Moon between Earth and Sun (toward Sun from Earth)
+    moonOrbit.userData.angle = Math.PI;
     moonOrbit.children[0].position.set(-MOON_ORBIT_R, 0, 0);
   } else {
     // Moon behind Earth (away from Sun)
@@ -2162,7 +2162,9 @@ function simulateEclipse(type) {
     moonOrbit.children[0].position.set(MOON_ORBIT_R, 0, 0);
   }
   
-  // Get world positions after placement
+  // Force scene graph update to get correct world positions
+  scene.updateMatrixWorld(true);
+  
   const sunPos = new THREE.Vector3(0, 0, 0);
   const earthPos = new THREE.Vector3();
   earthEntry.group.getWorldPosition(earthPos);
@@ -2170,50 +2172,30 @@ function simulateEclipse(type) {
   moon.getWorldPosition(moonPos);
   
   // ---- DRAW SHADOW DIAGRAM ----
-  const dashedMat = new THREE.LineDashedMaterial({
-    color: 0xffffff,
-    dashSize: 0.4,
-    gapSize: 0.2,
-    transparent: true,
-    opacity: 0.5,
-    linewidth: 1
-  });
-  
   if (type === 'solar') {
-    // Shadow cast by Moon onto Earth
-    // Blocker = Moon, Target = Earth
-    drawShadowDiagram(sunPos, SUN_R, moonPos, MOON_R, earthPos, EARTH_R, dashedMat);
+    drawEclipseDiagram(sunPos, SUN_R, moonPos, MOON_R, earthPos, EARTH_R);
   } else {
-    // Shadow cast by Earth onto Moon
-    // Blocker = Earth, Target = Moon
-    drawShadowDiagram(sunPos, SUN_R, earthPos, EARTH_R, moonPos, MOON_R, dashedMat);
+    drawEclipseDiagram(sunPos, SUN_R, earthPos, EARTH_R, moonPos, MOON_R);
   }
   
   // ---- ADD LABELS ----
-  addEclipseLabel('SUN', sunPos, 0, SUN_R + 1.2);
-  addEclipseLabel('EARTH', earthPos, 0, EARTH_R + 0.8);
-  addEclipseLabel('MOON', moonPos, 0, MOON_R + 0.6);
+  addEclipseLabel('SUN', sunPos, 0, SUN_R + 1.5);
+  addEclipseLabel('EARTH', earthPos, 0, EARTH_R + 1.0);
+  addEclipseLabel('MOON', moonPos, 0, MOON_R + 0.8);
   
-  // ---- SET CAMERA TO FIXED SIDE VIEW ----
-  // View from +Z axis looking at the alignment along X axis (like the reference diagram)
+  // ---- CAMERA: fixed side view like the reference diagram ----
   const farX = type === 'lunar' ? moonPos.x : earthPos.x;
   const midX = (sunPos.x + farX) / 2;
   const spanX = Math.abs(farX - sunPos.x);
-  // Camera distance from scene to see the full span with some margin
-  const viewDist = spanX * 0.95;
+  const camZ = spanX * 1.1; // far enough to see everything
   
   // Stop auto-rotation but keep user controls (pan/zoom/rotate) enabled
   controls.autoRotate = false;
   
-  new TWEEN.Tween(camera.position)
-    .to({ x: midX, y: 1.5, z: viewDist }, 2000)
-    .easing(TWEEN.Easing.Cubic.InOut)
-    .start();
-  
-  new TWEEN.Tween(controls.target)
-    .to({ x: midX, y: 0, z: 0 }, 2000)
-    .easing(TWEEN.Easing.Cubic.InOut)
-    .start();
+  // Set camera directly first for immediate effect
+  camera.position.set(midX, 2, camZ);
+  controls.target.set(midX, 0, 0);
+  controls.update();
   
   // Update UI buttons
   const btnSolar = document.getElementById('btn-solar-eclipse');
@@ -2221,7 +2203,10 @@ function simulateEclipse(type) {
   const btnExit = document.getElementById('btn-exit-eclipse');
   if (btnSolar) btnSolar.disabled = true;
   if (btnLunar) btnLunar.disabled = true;
-  if (btnExit) btnExit.disabled = false;
+  if (btnExit) {
+    btnExit.disabled = false;
+    btnExit.style.pointerEvents = 'auto';
+  }
   
   // Show educational info
   const infoDiv = document.getElementById('eclipse-info');
@@ -2241,151 +2226,123 @@ function simulateEclipse(type) {
 }
 
 /**
- * Draw the shadow cone diagram: tangent lines from the Sun's edges
- * past the blocker body, forming Umbra and Penumbra cones.
+ * Draw the eclipse diagram using only lines and manually-built BufferGeometry triangles.
+ * No ShapeGeometry (which can freeze on degenerate shapes).
  */
-function drawShadowDiagram(sunPos, sunR, blockerPos, blockerR, targetPos, targetR, dashedMat) {
-  // All positions are on the X axis (Y=0, Z=0)
+function drawEclipseDiagram(sunPos, sunR, blockerPos, blockerR, targetPos, targetR) {
   const sx = sunPos.x;
   const bx = blockerPos.x;
   const tx = targetPos.x;
+  const extendX = tx + Math.abs(tx - bx) * 1.5;
   
-  // Extend shadow past target
-  const extendX = tx + (tx - sx) * 0.3;
-  
-  // ---- UMBRA lines (cross lines: Sun top → Blocker bottom, Sun bottom → Blocker top) ----
-  // These cross and form the inner dark shadow cone
-  
-  // Line from Sun top edge to Blocker bottom edge, extended
-  const umbraLine1Start = new THREE.Vector3(sx, sunR, 0);
-  const umbraLine1Mid = new THREE.Vector3(bx, -blockerR, 0);
-  const umbraDir1 = new THREE.Vector3().subVectors(umbraLine1Mid, umbraLine1Start).normalize();
-  const umbraLine1End = getLinePointAtX(umbraLine1Start, umbraDir1, extendX);
-  
-  // Line from Sun bottom edge to Blocker top edge, extended
-  const umbraLine2Start = new THREE.Vector3(sx, -sunR, 0);
-  const umbraLine2Mid = new THREE.Vector3(bx, blockerR, 0);
-  const umbraDir2 = new THREE.Vector3().subVectors(umbraLine2Mid, umbraLine2Start).normalize();
-  const umbraLine2End = getLinePointAtX(umbraLine2Start, umbraDir2, extendX);
-  
-  addEclipseLine([umbraLine1Start, umbraLine1End], dashedMat);
-  addEclipseLine([umbraLine2Start, umbraLine2End], dashedMat);
-  
-  // ---- PENUMBRA lines (same-side: Sun top → Blocker top, Sun bottom → Blocker bottom) ----
-  const penLine1Start = new THREE.Vector3(sx, sunR, 0);
-  const penLine1Mid = new THREE.Vector3(bx, blockerR, 0);
-  const penDir1 = new THREE.Vector3().subVectors(penLine1Mid, penLine1Start).normalize();
-  const penLine1End = getLinePointAtX(penLine1Start, penDir1, extendX);
-  
-  const penLine2Start = new THREE.Vector3(sx, -sunR, 0);
-  const penLine2Mid = new THREE.Vector3(bx, -blockerR, 0);
-  const penDir2 = new THREE.Vector3().subVectors(penLine2Mid, penLine2Start).normalize();
-  const penLine2End = getLinePointAtX(penLine2Start, penDir2, extendX);
-  
-  addEclipseLine([penLine1Start, penLine1End], dashedMat);
-  addEclipseLine([penLine2Start, penLine2End], dashedMat);
-  
-  // ---- UMBRA CONE (dark inner shadow) ----
-  // Find where the two umbra lines cross (umbra tip)
-  const crossPoint = lineIntersectionXY(umbraLine1Start, umbraDir1, umbraLine2Start, umbraDir2);
-  
-  if (crossPoint) {
-    // Dark umbra cone from blocker to tip
-    const umbraShape = new THREE.Shape();
-    umbraShape.moveTo(bx, -blockerR);
-    umbraShape.lineTo(crossPoint.x, crossPoint.y);
-    umbraShape.lineTo(bx, blockerR);
-    umbraShape.lineTo(bx, -blockerR);
-    
-    const umbraGeo = new THREE.ShapeGeometry(umbraShape);
-    const umbraMat = new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    });
-    const umbraMesh = new THREE.Mesh(umbraGeo, umbraMat);
-    scene.add(umbraMesh);
-    eclipseVisuals.push(umbraMesh);
-    
-    // Umbra label at mid-point of cone
-    const umbraLabelX = (bx + crossPoint.x) / 2;
-    const umbraLabelY = -blockerR * 0.5 - 0.6;
-    addEclipseLabel('Umbra', new THREE.Vector3(umbraLabelX, umbraLabelY, 0), 0, 0, '#ff6b6b');
-  }
-  
-  // ---- PENUMBRA CONE (lighter outer shadow) ----
-  // From blocker edges to the target and beyond
-  const penTopAtTarget = getLinePointAtX(penLine1Start, penDir1, tx);
-  const penBotAtTarget = getLinePointAtX(penLine2Start, penDir2, tx);
-  const umbraTopAtTarget = getLinePointAtX(umbraLine1Start, umbraDir1, tx);
-  const umbraBotAtTarget = getLinePointAtX(umbraLine2Start, umbraDir2, tx);
-  
-  // Top penumbra strip (between pen top line and umbra cross line)
-  const penTopShape = new THREE.Shape();
-  penTopShape.moveTo(bx, blockerR);
-  penTopShape.lineTo(penTopAtTarget.x, penTopAtTarget.y);
-  if (crossPoint && crossPoint.x > tx) {
-    penTopShape.lineTo(umbraTopAtTarget.x, umbraTopAtTarget.y);
-  } else if (crossPoint) {
-    penTopShape.lineTo(crossPoint.x, crossPoint.y);
-  }
-  penTopShape.lineTo(bx, blockerR);
-  
-  const penTopGeo = new THREE.ShapeGeometry(penTopShape);
-  const penMat = new THREE.MeshBasicMaterial({
-    color: 0x1a1a3a,
+  const dashedMat = new THREE.LineDashedMaterial({
+    color: 0xcccccc,
+    dashSize: 0.3,
+    gapSize: 0.15,
     transparent: true,
-    opacity: 0.25,
+    opacity: 0.6
+  });
+  
+  // UMBRA cross-lines (Sun top → Blocker bottom, Sun bottom → Blocker top)
+  const u1Start = new THREE.Vector3(sx, sunR, 0);
+  const u1Through = new THREE.Vector3(bx, -blockerR, 0);
+  const u1Dir = new THREE.Vector3().subVectors(u1Through, u1Start).normalize();
+  const u1End = vecAtX(u1Start, u1Dir, extendX);
+  
+  const u2Start = new THREE.Vector3(sx, -sunR, 0);
+  const u2Through = new THREE.Vector3(bx, blockerR, 0);
+  const u2Dir = new THREE.Vector3().subVectors(u2Through, u2Start).normalize();
+  const u2End = vecAtX(u2Start, u2Dir, extendX);
+  
+  addEclipseLine([u1Start, u1End], dashedMat);
+  addEclipseLine([u2Start, u2End], dashedMat);
+  
+  // PENUMBRA same-side lines (Sun top → Blocker top, Sun bottom → Blocker bottom)
+  const p1Start = new THREE.Vector3(sx, sunR, 0);
+  const p1Through = new THREE.Vector3(bx, blockerR, 0);
+  const p1Dir = new THREE.Vector3().subVectors(p1Through, p1Start).normalize();
+  const p1End = vecAtX(p1Start, p1Dir, extendX);
+  
+  const p2Start = new THREE.Vector3(sx, -sunR, 0);
+  const p2Through = new THREE.Vector3(bx, -blockerR, 0);
+  const p2Dir = new THREE.Vector3().subVectors(p2Through, p2Start).normalize();
+  const p2End = vecAtX(p2Start, p2Dir, extendX);
+  
+  addEclipseLine([p1Start, p1End], dashedMat);
+  addEclipseLine([p2Start, p2End], dashedMat);
+  
+  // Find umbra crossing point
+  const cross = intersect2D(u1Start, u1Dir, u2Start, u2Dir);
+  
+  // UMBRA filled triangle (dark cone from blocker to crossing point)
+  if (cross && cross.x > bx) {
+    addFilledTriangle(
+      bx, blockerR, 0,
+      bx, -blockerR, 0,
+      cross.x, cross.y, 0,
+      0x000000, 0.45
+    );
+    
+    // Umbra label
+    const umLabelX = (bx + cross.x) / 2;
+    addEclipseLabel('Umbra', new THREE.Vector3(umLabelX, -blockerR - 0.8, 0), 0, 0, '#ff6b6b');
+  }
+  
+  // PENUMBRA filled areas (lighter strips between pen lines and umbra lines)
+  const penTopAtExt = vecAtX(p1Start, p1Dir, extendX);
+  const umbraTopAtExt = vecAtX(u1Start, u1Dir, extendX);
+  const penBotAtExt = vecAtX(p2Start, p2Dir, extendX);
+  const umbraBotAtExt = vecAtX(u2Start, u2Dir, extendX);
+  
+  // Top penumbra strip
+  addFilledTriangle(
+    bx, blockerR, 0,
+    penTopAtExt.x, penTopAtExt.y, 0,
+    umbraTopAtExt.x, umbraTopAtExt.y, 0,
+    0x1a1a4a, 0.2
+  );
+  
+  // Bottom penumbra strip
+  addFilledTriangle(
+    bx, -blockerR, 0,
+    penBotAtExt.x, penBotAtExt.y, 0,
+    umbraBotAtExt.x, umbraBotAtExt.y, 0,
+    0x1a1a4a, 0.2
+  );
+  
+  // Penumbra label
+  const penLabelX = (bx + extendX) / 2;
+  addEclipseLabel('Penumbra', new THREE.Vector3(penLabelX, -blockerR - 2.0, 0), 0, 0, '#ff9f43');
+}
+
+function vecAtX(origin, dir, x) {
+  if (Math.abs(dir.x) < 0.0001) return origin.clone();
+  const t = (x - origin.x) / dir.x;
+  return new THREE.Vector3(origin.x + dir.x * t, origin.y + dir.y * t, 0);
+}
+
+function intersect2D(p1, d1, p2, d2) {
+  const det = d1.x * d2.y - d1.y * d2.x;
+  if (Math.abs(det) < 0.0001) return null;
+  const t = ((p2.x - p1.x) * d2.y - (p2.y - p1.y) * d2.x) / det;
+  return new THREE.Vector3(p1.x + d1.x * t, p1.y + d1.y * t, 0);
+}
+
+function addFilledTriangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, color, opacity) {
+  const vertices = new Float32Array([x1, y1, z1, x2, y2, z2, x3, y3, z3]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: opacity,
     side: THREE.DoubleSide,
     depthWrite: false
   });
-  const penTopMesh = new THREE.Mesh(penTopGeo, penMat);
-  scene.add(penTopMesh);
-  eclipseVisuals.push(penTopMesh);
-  
-  // Bottom penumbra strip
-  const penBotShape = new THREE.Shape();
-  penBotShape.moveTo(bx, -blockerR);
-  penBotShape.lineTo(penBotAtTarget.x, penBotAtTarget.y);
-  if (crossPoint && crossPoint.x > tx) {
-    penBotShape.lineTo(umbraBotAtTarget.x, umbraBotAtTarget.y);
-  } else if (crossPoint) {
-    penBotShape.lineTo(crossPoint.x, crossPoint.y);
-  }
-  penBotShape.lineTo(bx, -blockerR);
-  
-  const penBotGeo = new THREE.ShapeGeometry(penBotShape);
-  const penBotMesh = new THREE.Mesh(penBotGeo, penMat.clone());
-  scene.add(penBotMesh);
-  eclipseVisuals.push(penBotMesh);
-  
-  // Penumbra label
-  const penLabelX = (bx + tx) / 2;
-  const penLabelY = (penTopAtTarget.y + (crossPoint ? Math.min(umbraTopAtTarget.y, penTopAtTarget.y) : 0)) / 2 + 1.0;
-  addEclipseLabel('Penumbra', new THREE.Vector3(penLabelX, -blockerR - 1.5, 0), 0, 0, '#ff9f43');
-}
-
-function getLinePointAtX(origin, direction, targetX) {
-  // Given a line from origin in direction, find where it reaches targetX
-  if (Math.abs(direction.x) < 0.0001) return origin.clone();
-  const t = (targetX - origin.x) / direction.x;
-  return new THREE.Vector3(
-    origin.x + direction.x * t,
-    origin.y + direction.y * t,
-    origin.z + direction.z * t
-  );
-}
-
-function lineIntersectionXY(p1, d1, p2, d2) {
-  // Find intersection of two 2D lines in XY plane
-  const det = d1.x * d2.y - d1.y * d2.x;
-  if (Math.abs(det) < 0.0001) return null;
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
-  const t = (dx * d2.y - dy * d2.x) / det;
-  return new THREE.Vector3(p1.x + d1.x * t, p1.y + d1.y * t, 0);
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+  eclipseVisuals.push(mesh);
 }
 
 function addEclipseLine(points, material) {
@@ -2433,12 +2390,10 @@ function exitEclipse() {
   isEclipseMode = false;
   eclipseType = null;
   
-  simulationSpeed = previousSimulationSpeed;
+  simulationSpeed = previousSimulationSpeed || 1;
   isPaused = false;
   const speedDisplay = document.getElementById('speed-display');
   if (speedDisplay) speedDisplay.textContent = `Speed: ${simulationSpeed}x`;
-  
-  // Restore controls (they were never locked, only rotation was paused)
   
   const btnSolar = document.getElementById('btn-solar-eclipse');
   const btnLunar = document.getElementById('btn-lunar-eclipse');
@@ -2451,22 +2406,10 @@ function exitEclipse() {
   const infoDiv = document.getElementById('eclipse-info');
   if (infoDiv) infoDiv.classList.add('hidden');
   
-  // Zoom out
-  const earthEntry = planetMeshes.find(p => p.data.name === 'Earth');
-  if (earthEntry) {
-    const earthPos = new THREE.Vector3();
-    earthEntry.group.getWorldPosition(earthPos);
-    
-    new TWEEN.Tween(camera.position)
-      .to({ x: earthPos.x, y: 8, z: earthPos.z + 15 }, 2000)
-      .easing(TWEEN.Easing.Cubic.InOut)
-      .start();
-    
-    new TWEEN.Tween(controls.target)
-      .to({ x: earthPos.x, y: 0, z: earthPos.z }, 2000)
-      .easing(TWEEN.Easing.Cubic.InOut)
-      .start();
-  }
+  // Reset camera to a nice overview — set directly to avoid TWEEN/OrbitControls conflicts
+  camera.position.set(0, 25, 40);
+  controls.target.set(0, 0, 0);
+  controls.update();
 }
 
 function setupEclipsePanelDrag() {
