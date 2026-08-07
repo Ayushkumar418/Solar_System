@@ -918,7 +918,7 @@ function onMouseClick(event) {
       event.target.closest('#time-travel-panel') || event.target.closest('#comparison-panel') ||
       event.target.closest('#stats-panel') || event.target.closest('#tour-overlay') ||
       event.target.closest('#planet-search-wrapper') || event.target.closest('#minimap-container') ||
-      event.target.closest('#measure-panel')) {
+      event.target.closest('#measure-panel') || event.target.closest('#eclipse-panel')) {
     return;
   }
 
@@ -943,7 +943,9 @@ function onMouseClick(event) {
         hoveredPlanet.material.emissiveIntensity = 0;
       }
       hoveredPlanet = null;
-      hidePlanetInfo();
+      const infoPanel = document.getElementById('info-panel');
+      if (infoPanel) infoPanel.classList.add('hidden');
+      selectedPlanet = null;
     }
   }
 }
@@ -952,7 +954,8 @@ function onDoubleClick(event) {
   if (event.target.closest('#control-panel') || event.target.closest('#info-panel') ||
       event.target.closest('#time-travel-panel') || event.target.closest('#comparison-panel') ||
       event.target.closest('#stats-panel') || event.target.closest('#tour-overlay') ||
-      event.target.closest('#minimap-container')) {
+      event.target.closest('#minimap-container') || event.target.closest('#measure-panel') ||
+      event.target.closest('#eclipse-panel')) {
     return;
   }
 
