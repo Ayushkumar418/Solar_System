@@ -2187,17 +2187,19 @@ function simulateEclipse(type) {
   addEclipseLabel('MOON', moonPos, 0, MOON_R + 0.8);
   
   // ---- CAMERA: fixed side view like the reference diagram ----
-  const farX = type === 'lunar' ? moonPos.x : earthPos.x;
-  const midX = (sunPos.x + farX) / 2;
-  const spanX = Math.abs(farX - sunPos.x);
-  const camZ = spanX * 1.1; // far enough to see everything
+  // Center camera on the shadow area (between blocker and target), not the midpoint of Sun-Earth
+  // This way the Sun is partially visible on the left, and the shadow cone diagram fills the view
+  const blockerX = type === 'solar' ? moonPos.x : earthPos.x;
+  const targetX = type === 'solar' ? earthPos.x : moonPos.x;
+  const lookAtX = (blockerX + targetX) / 2; // center between blocker and target
+  const camZ = 22; // far enough to see Sun edge + full shadow cone
   
   // Stop auto-rotation but keep user controls (pan/zoom/rotate) enabled
   controls.autoRotate = false;
   
-  // Set camera directly first for immediate effect
-  camera.position.set(midX, 2, camZ);
-  controls.target.set(midX, 0, 0);
+  // Set camera directly for immediate effect
+  camera.position.set(lookAtX, 3, camZ);
+  controls.target.set(lookAtX, 0, 0);
   controls.update();
   
   // Update UI buttons
